@@ -1,0 +1,11 @@
+default_agent: claude
+disabled_rules:
+  - CORE:C:0035
+  - CORE:C:0034
+  - CORE:C:0027
+  - CORE:C:0033
+  - CORE:C:0010
+  - CORE:G:0004
+  - CORE:C:0014
+  - CORE:C:0013
+  - CORE:S:0010

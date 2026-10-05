@@ -1,0 +1,16 @@
+{
+  "$schema": "https://code.claude.com/schemas/marketplace.json",
+  "name": "reporails",
+  "description": "Reporails plugins for AI instruction-file quality — preflight, validate, and explain via the reporails-cli MCP server, plus heal to rewrite instruction files toward their ideal form (requires a Pro subscription).",
+  "owner": {
+    "name": "Mészáros Gábor e.v.",
+    "url": "https://reporails.com"
+  },
+  "plugins": [
+    {
+      "name": "reporails",
+      "source": "./plugins/reporails",
+      "description": "Preflight + check + heal + explain for AI instruction files. Bundles the `ails` skill and the reporails MCP server."
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+#!/bin/sh
+# Wrapper: run the installed ails if there is one, fall back to npx.
+# Skips this file itself, since the plugin's bin/ is on PATH.
+self=$(cd "$(dirname "$0")" && pwd -P)/$(basename "$0")
+old=$IFS
+IFS=:
+for dir in $PATH; do
+  [ -n "$dir" ] || dir=.
+  cand=$(cd "$dir" 2>/dev/null && pwd -P)/ails
+  if [ -x "$cand" ] && [ -f "$cand" ] && [ "$cand" != "$self" ]; then
+    IFS=$old
+    exec "$cand" "$@"
+  fi
+done
+IFS=$old
+exec npx @reporails/cli "$@"

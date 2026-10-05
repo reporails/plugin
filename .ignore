@@ -1,0 +1,2 @@
+# Keep a local .claude/skills/ folder out of file search; the plugin's skill lives in plugins/reporails/skills/
+.claude/skills/

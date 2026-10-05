@@ -1,0 +1,5 @@
+# IDE ignore
+.idea
+
+# Local Claude Code folder of this checkout; the plugin's own files live in plugins/reporails/
+.claude/

@@ -1,0 +1,13 @@
+{
+  "name": "reporails",
+  "description": "AI instruction-file quality. Preflight rules before authoring a skill or agent (`/reporails:ails preflight skill`). Validate existing files (`/reporails:ails check`). Rewrite instruction files toward their ideal form (`/reporails:ails heal`, requires a Pro subscription). Explain rules (`/reporails:ails explain`). Bundles the `ails` skill and the `reporails` MCP server for one-command activation.",
+  "version": "0.6.0",
+  "author": {
+    "name": "Mészáros Gábor e.v.",
+    "email": "gabor@cleverhoods.com"
+  },
+  "homepage": "https://reporails.com",
+  "repository": "https://github.com/reporails/plugin",
+  "license": "BUSL-1.1",
+  "keywords": ["claude-code", "lint", "instruction-files", "skills", "rules", "preflight"]
+}

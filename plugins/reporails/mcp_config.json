@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "reporails": {
+      "command": "uvx",
+      "args": ["--from", "reporails-cli>=0.6.0,<0.7", "reporails-mcp"]
+    }
+  }
+}
