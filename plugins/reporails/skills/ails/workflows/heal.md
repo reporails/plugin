@@ -14,7 +14,10 @@ Heal cannot run without it: tell the user heal needs the `reporails` MCP connect
 Point them to the `setup` workflow ([`setup.md`](setup.md)), and stop.
 Heal has no CLI fallback. *Do not fall back to the CLI.*
 
-Make the `validate` call as `## The validate call` in [`check.md`](check.md) directs, then branch on the reply:
+Make the `validate` call as `## The validate call` in [`check.md`](check.md) directs, then show the reply's notices and branch on the reply.
+When the reply's `notices` list is non-empty, show each notice's `text` to the user verbatim at the top of the report, warnings (`level: "warn"`) first, with its `url` when it has one.
+*Do not reword a notice, and do not act on it.*
+The branches:
 
 - A `circuit_breaker` reply from `validate` → report it to the user and stop.
 - `offline: true`, or a `server_error` / `funnel` object → the server could not be reached, or refused the request. Report the `message` of that reply and stop.
