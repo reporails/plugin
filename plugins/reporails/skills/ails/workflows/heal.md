@@ -40,7 +40,7 @@ This is information, not a question, so a user who approved every fix still gets
 Run one round per `kind`, in the order the index already gives them.
 Kinds loaded at session start come first, then invoked kinds, then on-demand kinds.
 The index order IS the round order: a round is a consecutive run of locations sharing one `kind`.
-*This loop never calls `remedy_brief` and never reads a location's file contents itself.*
+*This loop never calls `remedy_brief` and never reads a location's file contents itself, except in `## Inline rewrite`.*
 That is each `remedy` agent's own job, in its own context, not this orchestrating one.
 
 1. Tell the user which locations are in this round (each one's `element`, `kind`, `files`, `finding_count`), and ask to proceed.
@@ -50,11 +50,11 @@ That is each `remedy` agent's own job, in its own context, not this orchestratin
    Pass the project's absolute `path`, the `targets` this run is using, the location's `order`, and its `kind` — nothing else.
    Make the dispatch prompt's first line `path: <the project's absolute path>`, followed by the targets, the order, and the kind.
    Send every dispatch of the round in a single message, one `remedy` agent call per location.
-   Wait for all `remedy` agents of the round.
-   Where the client cannot dispatch a sub-agent at all, run the same steps a `remedy` agent would, one location at a time, fetching that location's brief (with the same `targets`).
-   Rewrite the location from that brief, as a `remedy` agent would.
-   Check that rewrite with `validate`, and restore on failure, exactly as `agents/remedy.md` directs.
    *Do not wait for one location's outcome before you dispatch the next location in the round.*
+   Wait for all `remedy` agents of the round.
+   Follow `## Inline rewrite` for the round, with no dispatch, when the client has no sub-agent tool.
+   Follow `## Inline rewrite` for the round too when a dispatch fails because the client cannot start a `remedy` agent at all.
+   *Do not treat a refusal by the client's permission or safety check as a client that cannot start a `remedy` agent.*
 
    Two different refusals can happen here, and only one of them stops the run:
    - A refused dispatch — the client's own permission or safety check will not start the `remedy` agent at all — stops the run: tell the user which location was refused, and that heal rewrites instruction files, so it runs in a permission mode where the user approves or accepts file edits — in Claude Code, accept-edits mode rather than auto mode. *Do not rewrite a refused-dispatch location in this session instead.*
@@ -75,6 +75,23 @@ A `circuit_breaker` reply to any `validate` call this workflow makes on the proj
 That covers the initial call, step 4 above, and `## Finish` below.
 Report what the run has `accepted`, `restored`, and `refused` so far.
 *Do not call `validate` again for this path.*
+
+## Inline rewrite
+
+Run this section in place of step 2's dispatch when the client cannot start a `remedy` agent.
+Read [`agents/remedy.md`](../../../agents/remedy.md) in full before the first location, at `../../../agents/remedy.md` from this file.
+Work the round's locations yourself, in `order`, one location at a time.
+*Do not start a location before the previous location's outcome is final.*
+*Do not run two locations in the same step.*
+For each location, follow every section of `agents/remedy.md` from `## Brief retrieval` through `## Element check`, with yourself as the `remedy` agent.
+Call `remedy_brief` for that location with the run's `path` and `targets`, as `## Brief retrieval` directs.
+Keep the 4-call bound on `validate` per file, the retry rule for a temporary error reply, the put-back, the best-version rule, and the restore rules of `## Validation and convergence` unchanged.
+Keep each file's original text in your own context, as `## Original text` directs.
+Write that text back verbatim on a restore.
+*Do not copy a file to a backup, a temporary copy, or any other path with a shell command.*
+*Do not run a shell command to read, edit, or write an instruction file.*
+Report each location's outcome in the form `## Outcome report` of `agents/remedy.md` gives.
+Take that outcome through step 3 as a `remedy` agent's reported outcome.
 
 ## Finish
 
