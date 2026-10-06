@@ -1,7 +1,7 @@
 # Setup — reporails-cli Installation
 
 Run this when `command -v ails` finds nothing, or when the user asks for `setup`.
-It leaves the machine in the same state as `npx @reporails/cli install`: `uv` installed, `ails` on `PATH`, this plugin installed into Claude Code and Codex, and the engine prepared.
+It leaves the machine in the same state as `npx @reporails/cli@0.6 install`: `uv` installed, `ails` on `PATH`, this plugin installed into Claude Code and Codex, and the engine prepared.
 
 ## Tool detection
 
@@ -20,7 +20,7 @@ flowchart TD
     S -->|Approved| T["setup workflow, then the requested subcommand"]
     S -->|Declined or unfinished| I{ails on PATH?}
     I -->|Yes| J[ails CLI]
-    I -->|No| K["npx @reporails/cli"]
+    I -->|No| K["npx @reporails/cli@0.6"]
 ```
 
 ## One-time setup offer
@@ -29,7 +29,7 @@ Offer the one-time setup before any CLI fallback when the `reporails` MCP tools 
 Run the one-time setup when the `reporails` tools are missing from the tool list.
 Run it also when a step needs the `ails` command (signing in) and `command -v ails` finds nothing.
 Tell the user `reporails` needs a one-time setup and ask to run it.
-Run the `setup` workflow once they approve, which runs `npx @reporails/cli install`.
+Run the `setup` workflow once they approve, which runs `npx @reporails/cli@0.6 install`.
 Continue with the requested subcommand once the `setup` workflow finishes.
 *Do not run the setup while the `reporails` tools are connected and no step needs the `ails` command.*
 *Do not run the setup without the user's approval.*
@@ -38,7 +38,7 @@ Continue with the requested subcommand once the `setup` workflow finishes.
 ## CLI fallback order
 
 Run `ails check .` or `ails explain <rule_id>` directly when `ails` is on `PATH`.
-Run `npx @reporails/cli check .` when no `ails` binary is installed.
+Run `npx @reporails/cli@0.6 check .` when no `ails` binary is installed.
 Offer the faster path afterward: `uv tool install reporails-cli && ails install`.
 *Do not fall back to the CLI unless the user declines the setup or it could not finish.*
 
@@ -49,7 +49,7 @@ Run `command -v npx` and `command -v uv` to see which tools are present.
 When `npx` is present, run:
 
 ```bash
-npx @reporails/cli install
+npx @reporails/cli@0.6 install
 ```
 
 When `npx` is missing and `uv` is present, run:

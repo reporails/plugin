@@ -41,7 +41,7 @@ cd <path> && ails check [targets…] -v
 Run this instead when `ails` is not installed:
 
 ```bash
-cd <path> && npx @reporails/cli check [targets…] -v
+cd <path> && npx @reporails/cli@0.6 check [targets…] -v
 ```
 
 No `targets` scans the whole project, same as the MCP path.

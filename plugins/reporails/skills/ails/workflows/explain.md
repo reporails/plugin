@@ -24,10 +24,10 @@ Run `ails explain <rule_id>` from the project directory when the MCP `explain` t
 ails explain CORE:C:0013
 ```
 
-Run `npx @reporails/cli explain <rule_id>` instead when the `ails` binary is not installed:
+Run `npx @reporails/cli@0.6 explain <rule_id>` instead when the `ails` binary is not installed:
 
 ```bash
-npx @reporails/cli explain CORE:C:0013
+npx @reporails/cli@0.6 explain CORE:C:0013
 ```
 
 ## Output format

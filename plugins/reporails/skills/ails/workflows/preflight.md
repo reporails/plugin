@@ -26,7 +26,7 @@ Use `/reporails:ails check` or `/reporails:ails heal` instead when the file alre
    - the reporails MCP `preflight` tool (its name ends in `reporails__preflight`), preferred — call it with `capability` (required) and `agent` (optional)
    - the one-time setup from [`setup.md`](setup.md), offered when that tool is missing
    - `ails rules list --capability <capability> -f md` when `ails` is on `PATH`
-   - `npx @reporails/cli rules list --capability <capability> -f md` otherwise
+   - `npx @reporails/cli@0.6 rules list --capability <capability> -f md` otherwise
 
 3. Fetch the rule set:
    - MCP: call `preflight` with `capability: <capability>` and, when the agent is known, `agent: <agent>`.
@@ -77,4 +77,4 @@ Report every remaining `check` finding tied back to its violated rule, with the 
 
 - Capability unknown: ask the user to clarify which `capability` they mean. `skill`, `agent`, `rule`, and `main` are the most common.
 - Rule set empty: the `capability` is not declared in the detected agent's config, most often a typo; ask the user to confirm the `capability`.
-- MCP `preflight` returns an error: fall through to the CLI `ails rules list` command, then to `npx @reporails/cli`.
+- MCP `preflight` returns an error: fall through to the CLI `ails rules list` command, then to `npx @reporails/cli@0.6`.

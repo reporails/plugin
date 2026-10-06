@@ -19,7 +19,7 @@ Make the `validate` call as `## The validate call` in [`check.md`](check.md) dir
 - A `circuit_breaker` reply from `validate` → report it to the user and stop.
 - `offline: true`, or a `server_error` / `funnel` object → the server could not be reached, or refused the request. Report the `message` of that reply and stop.
 - `tier` is `anonymous` or `free` and no `workflow` in the reply → heal needs a Pro subscription, which this account does not have. Run `ails auth status` to see whether the user is signed in:
-  - It prints `Not authenticated` → offer to sign the user in now. With their approval, start `ails auth login`. As soon as `ails auth login` prints the URL and the one-time code, show both to the user and tell them to approve in the browser. The command finishes once they approve. Then call `validate` again and branch on the new reply. Tell them to run `npx @reporails/cli auth login` instead when there is no `ails` command on their `PATH`. *Do not run `ails auth login` without the user's approval.*
+  - It prints `Not authenticated` → offer to sign the user in now. With their approval, start `ails auth login`. As soon as `ails auth login` prints the URL and the one-time code, show both to the user and tell them to approve in the browser. The command finishes once they approve. Then call `validate` again and branch on the new reply. Tell them to run `npx @reporails/cli@0.6 auth login` instead when there is no `ails` command on their `PATH`. *Do not run `ails auth login` without the user's approval.*
   - It prints `Authenticated` → heal needs Pro, and signing in alone does not unlock it. Tell the user to upgrade to Pro, and stop `heal`.
 - `tier` is a paid tier (`pro` or `team`) and no `workflow` in the reply → the server returned no remedy for this run. Report the missing `workflow` to the user and stop. *Do not tell a paying user they need a paid account.*
 - A paid tier whose `workflow.locations` is empty → nothing to rewrite. Report what stays `listed` (why each finding is not served) and stop.
@@ -90,8 +90,8 @@ Report, in this order:
    Give each group one line per rule — its title with its ID as a link, `Title ([CORE:E:0004](url))`, from the reply's `rules` map, and its count — then the group's `why` once, after its rules.
    Then list any location of `workflow.locations` still open, with the reason.
 
-Write the same report as Markdown to `.ails/reports/heal-<YYYY-MM-DD>.md` under the project `path`.
-Name that `.ails/reports/heal-<YYYY-MM-DD>.md` file in the reply.
+Write the same report as Markdown, with `<YYYY-MM-DD-HHMM>` as the local date and 24-hour time, to `.ails/reports/heal-<YYYY-MM-DD-HHMM>.md` under the project `path`.
+Name that `.ails/reports/heal-<YYYY-MM-DD-HHMM>.md` file in the reply.
 
 Ask the user whether to stop at `## Finish` or continue.
 Continuing runs another pass of `## The loop` over every location in that validate reply's index whose `importance` is `gate_mover` or `conditional` and that this run has not given up on, matched by its `element` and `kind`, and at least one file in common with the given-up location's `files`.

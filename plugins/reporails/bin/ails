@@ -13,4 +13,4 @@ for dir in $PATH; do
   fi
 done
 IFS=$old
-exec npx @reporails/cli "$@"
+exec npx @reporails/cli@0.6 "$@"
