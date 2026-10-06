@@ -60,7 +60,7 @@ uv tool install reporails-cli && ails install
 
 When both are missing, tell the user to install `Node.js` from https://nodejs.org or `uv` from https://docs.astral.sh/uv/, then run `setup` again, and stop.
 
-The install ends by printing the sign-in step.
+The install ends by pointing to `ails login`.
 The `heal` workflow offers sign-in when it needs one.
 *Do not sign the user in during setup unless they ask.*
 

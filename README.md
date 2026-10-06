@@ -17,7 +17,7 @@ Every MCP config points at the same `reporails-mcp` server via `uvx`, so all fiv
 
 ## Install
 
-From a terminal, one command sets everything up: it installs `uv` when it is missing, puts `ails` on your `PATH`, installs this plugin into Claude Code and Codex when they are present, and ends with the sign-in step:
+From a terminal, one command sets everything up: it installs `uv` when it is missing, puts `ails` on your `PATH`, installs this plugin into Claude Code and Codex when they are present, and ends by pointing you to `ails login`:
 
 ```bash
 npx @reporails/cli@0.6 install
@@ -45,7 +45,7 @@ git clone https://github.com/reporails/plugin
 - [`uv`](https://docs.astral.sh/uv/) installed — every agent's MCP config launches the server with `uvx`.
 - The first start downloads the command-line tool (`reporails-cli>=0.6.0,<0.7`) with its dependencies and about 275 MB of model files, once per machine, so it needs network access. On a slow connection the agent can show the server as failed to connect; reconnect it once the download finishes (Claude Code: `/mcp`), or restart the agent.
 - `pip install reporails-cli` does not provide `uvx`, so it cannot start the plugin's server.
-- Fixes (`heal`) need a Pro subscription and a sign-in: `ails auth login`, or `npx @reporails/cli@0.6 auth login` when you have only the plugin and no `ails` command.
+- Fixes (`heal`) need a Pro subscription and a sign-in: `ails login`, or `npx @reporails/cli@0.6 login` when you have only the plugin and no `ails` command.
 
 To also have the command-line tool on your `PATH` outside the plugin:
 
