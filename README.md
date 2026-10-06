@@ -40,10 +40,19 @@ git clone https://github.com/reporails/plugin
 
 `ails install` prints the same commands.
 
+## Updating
+
+`ails update` refreshes the plugin in Claude Code and Codex. By hand:
+
+- **Claude Code** — `/plugin marketplace update reporails`, then `/plugin update reporails@reporails`, then `/reload-plugins` or start a new session. Claude Code can also turn on auto-update for the marketplace.
+- **Codex** — `codex plugin marketplace upgrade reporails`, then `codex plugin add reporails@reporails`
+
+Cursor, Copilot (VS Code) and Antigravity update by hand: run `git pull` in your clone, then install again exactly as in Install.
+
 ## Requirements
 
 - [`uv`](https://docs.astral.sh/uv/) installed — every agent's MCP config launches the server with `uvx`.
-- The first start downloads the command-line tool (`reporails-cli>=0.6.0,<0.7`) with its dependencies and about 275 MB of model files, once per machine, so it needs network access. On a slow connection the agent can show the server as failed to connect; reconnect it once the download finishes (Claude Code: `/mcp`), or restart the agent.
+- The first start downloads the command-line tool (`reporails-cli>=0.6.1,<0.7`) with its dependencies and about 275 MB of model files, once per machine, so it needs network access. On a slow connection the agent can show the server as failed to connect; reconnect it once the download finishes (Claude Code: `/mcp`), or restart the agent.
 - `pip install reporails-cli` does not provide `uvx`, so it cannot start the plugin's server.
 - Fixes (`heal`) need a Pro subscription and a sign-in: `ails login`, or `npx @reporails/cli@0.6 login` when you have only the plugin and no `ails` command.
 

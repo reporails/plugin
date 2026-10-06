@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "reporails",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "AI instruction-file quality across coding agents. Preflight the rules before you author a skill, agent, or rule; validate existing instruction files; rewrite instruction files toward their ideal form (requires a Pro subscription); explain what a rule checks. Bundles the `ails` skill and the reporails MCP server.",
   "author": {
     "name": "Mészáros Gábor e.v.",
