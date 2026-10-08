@@ -110,7 +110,7 @@ Work the round's locations yourself, in `order`, one location at a time.
 *Do not start a location before the previous location's outcome is final.*
 *Do not run two locations in the same step.*
 For each location, follow every section of `agents/remedy.md` from `## Brief retrieval` through `## Element check`, with yourself as the `remedy` agent.
-Call `remedy_brief` for that location with the run's `path` and `targets`, as `## Brief retrieval` directs.
+Call `remedy_brief` for that location with the run's `path`, `targets`, and `has_guide=true`, as `## Brief retrieval` directs. The guide is in `agents/remedy.md`, which you read in full above, so `has_guide=true` is true here too.
 Keep the 4-call bound on `validate` per file, the retry rule for a temporary error reply, the put-back, the best-version rule, and the restore rules of `## Validation and convergence` unchanged.
 Keep each file's original text in your own context, as `## Original text` directs.
 On a restore, write each file's original text back verbatim to its `path`.

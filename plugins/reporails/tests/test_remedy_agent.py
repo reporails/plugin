@@ -4,6 +4,7 @@ Run: python3 -m unittest discover plugins/reporails/tests
 Set REMEDY_MD to test another copy of agents/remedy.md.
 """
 import os
+import re
 import unittest
 from pathlib import Path
 
@@ -29,6 +30,23 @@ class RemedyAgentTest(unittest.TestCase):
         disallowed = frontmatter_disallowed_tools(REMEDY_MD.read_text(encoding="utf-8"))
         missing = [tool for tool in HELPER_STARTERS if tool not in disallowed]
         self.assertEqual(missing, [], f"remedy.md disallowedTools lacks: {', '.join(missing)}")
+
+    def test_explain_is_denied_and_named_in_tool_paragraph(self):
+        text = REMEDY_MD.read_text(encoding="utf-8")
+        self.assertIn("mcp__plugin_reporails_reporails__explain", frontmatter_disallowed_tools(text))
+        self.assertIn("Do not call `explain`", text)
+
+    def test_every_remedy_brief_call_carries_has_guide(self):
+        for path in (REMEDY_MD, REMEDY_MD.parents[1] / "skills" / "ails" / "workflows" / "heal.md"):
+            text = path.read_text(encoding="utf-8")
+            calls = re.findall(r"`remedy_brief\(([^`]*)\)`", text)
+            for call in calls:
+                self.assertIn("has_guide", call, f"{path.name}: remedy_brief({call})")
+        self.assertIn("has_guide", REMEDY_MD.read_text(encoding="utf-8"))
+        self.assertIn("has_guide=true", (REMEDY_MD.parents[1] / "skills" / "ails" / "workflows" / "heal.md").read_text(encoding="utf-8"))
+
+    def test_put_back_step_covers_added_reasons(self):
+        self.assertIn("`added_reasons`", REMEDY_MD.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
