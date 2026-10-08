@@ -23,5 +23,5 @@ marker="${TMPDIR:-/tmp}/reporails-heal-notice-$session"
 [ -e "$marker" ] && exit 0
 : > "$marker" || exit 0
 
-printf '{"systemMessage": "Heal is rewriting instruction files in %s. Claude Code asks before each edit to an instruction file (a CLAUDE.md or AGENTS.md, or a file under .claude/), because those files change how your agent behaves. Allowing edits for this session at the first prompt lets the run continue without a prompt for each file."}\n' "$path"
+printf '{"systemMessage": "Heal is rewriting instruction files in %s. Claude Code asks before each edit under .claude/, and outside accept-edits mode before each edit to a CLAUDE.md or AGENTS.md, because those files change how your agent behaves. At the first prompt for a .claude/ file, choose \\"Yes, and allow Claude to edit files in this project'"'"'s .claude folder for this session\\" and the rest of the run'"'"'s .claude/ edits go through without a prompt for each file."}\n' "$path"
 exit 0

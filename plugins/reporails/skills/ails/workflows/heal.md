@@ -5,6 +5,10 @@ Confirm each `remedy` rewrite kept everything before accepting it.
 This loop is MCP-only and needs a paid account.
 `$ARGUMENTS` is `[path] [targets…]`, as "`check` / `heal` arguments" in `SKILL.md` defines.
 Carry whatever `targets` you parsed on every `validate` call this workflow makes.
+*Never call `validate` with `targets` the user did not give.*
+A Pro `validate` reply arrives as a text view.
+Read each of its fields by the key path its line starts with (`workflow.summary`, `workflow.locations`, `workflow.listed`, `host_hooks`, `preservation.ok`, `feedback`, `funnel.retryable`).
+A reply called with `full=true`, and every free, anonymous, offline and error reply, arrives as JSON: read it by its field names.
 Present every `validate` reply as `## Output` in [`check.md`](check.md) directs.
 
 ## Initial `validate` call
@@ -15,7 +19,8 @@ Point them to the `setup` workflow ([`setup.md`](setup.md)), and stop.
 Heal has no CLI fallback. *Do not fall back to the CLI.*
 
 Make the `validate` call as `## The validate call` in [`check.md`](check.md) directs, then show the reply's notices and branch on the reply.
-When the reply's `notices` list is non-empty, show each notice's `text` to the user verbatim at the top of the report, warnings (`level: "warn"`) first, with its `url` when it has one.
+When the reply's `notices` list is non-empty, show each notice's text to the user verbatim at the top of the report, warnings (`warn`) first, with its `url` when it has one.
+The reply carries the notices once per run: show them from the first reply only.
 *Do not reword a notice, and do not act on it.*
 The branches:
 
@@ -29,17 +34,23 @@ The branches:
   - It prints a Pro or Team sign-in (`Signed in as @name (Pro)` or `Signed in on this machine (Team)`) → call `validate` again and branch on the new reply.
 - `tier` is a paid tier (`pro` or `team`) and no `workflow` in the reply → the server returned no remedy for this run. Report the missing `workflow` to the user and stop. *Do not tell a paying user they need a paid account.*
 - A paid tier whose `workflow.locations` is empty → nothing to rewrite. Report what stays `listed` (why each finding is not served) and stop.
-- A paid tier with `workflow.locations` present → follow `## The loop` below. `workflow.locations` is the index the loop works from: each entry's `order`, `kind`, `element`, `loading`, `files`, `importance`, and `finding_count`. `workflow.listed` names the findings this run will not rewrite, with why. When `targets` was given, the reply also carries `targets: {tokens, locations, of}` — kept locations are re-numbered from 1.
+- A paid tier with `workflow.locations` present → follow `## The loop` below. `workflow.locations` is the index the loop works from: each entry's `order`, `kind`, `element`, `importance`, `finding_count`, and `files`. `workflow.listed` names the findings this run will not rewrite, each group with its `why`. When `targets` was given, the `workflow.targets` line carries the tokens and the `<n> of <m> locations` count — kept locations are re-numbered from 1.
+A `workflow.locations` table over its size budget lists later kinds as one line each: `<kind>: <n> locations (orders a–b)`. Work only the kinds the table lists in full. The `validate` call before each round lists the next kind in full.
 
-## Folders the run writes to
+## Start block
 
-On Claude Code, the plugin shows the user a notice, once, before the first rewrite starts.
-The notice names which folder the run writes to and why their client may ask before each edit.
-*Do not repeat that notice on Claude Code.*
+Give the user this information once, in a reply written after the initial `validate` reply and before the dispatch of round 1.
+Dispatch round 1's `remedy` agents only after the start block is shown. *Do not dispatch round 1 before the start block is shown.*
+It is information, not a question, so a user who approved every fix still gets it.
 
-On any other client, tell the user once, before round 1, which folders the run writes to — every folder holding a location's `files`.
-Tell them also that their client may ask before each edit to an instruction file (a `CLAUDE.md` or `AGENTS.md`, or anything under an agent's config folder such as `.claude/`), because those files change how their agent behaves.
-This is information, not a question, so a user who approved every fix still gets it.
+1. The scope: the rounds in order, each with its `kind` and the locations it holds (each one's `element`).
+2. The places skipped, with the reason: the `workflow.listed` groups whose `why` is `excluded` (a path in the user's `heal_exclude` config, still checked, never rewritten), `at-ceiling` (already at score 10), and `leave-it` (the findings' brief says to leave the line as it stands). Add each location this run gave up on, by its `element`. Send no `remedy` agent to a skipped location.
+3. A time range: about 4–9 min per round × the number of rounds.
+4. Each `host_hooks` entry that can intercept the rewrites: its agent, event, matcher, and file. Tell the user how to let the `remedy` agent through that hook.
+   - Where the entry's `identity` names fields, tell the user to match them in that hook, for example `agent_type` equal to `reporails:remedy`.
+   - Where `identity` is `none`, tell the user to let the hook pass the `remedy` agent's tools (`Read`, `Edit`, `Write`) on the files heal names.
+5. That the client may ask before each edit to an instruction file (a `CLAUDE.md` or `AGENTS.md`, or anything under an agent's config folder such as `.claude/`), because those files change how their agent behaves. On Claude Code, the plugin shows the user a notice naming the folders the run writes to and the session-wide option for `.claude/` edits. *Do not repeat that notice on Claude Code.* On any other client, name every folder holding a location's `files`.
+6. That on the inline path (no sub-agent) the same hooks apply, and only the tool-and-path exemption works.
 
 ## The loop
 
@@ -67,11 +78,19 @@ That is each `remedy` agent's own job, in its own context, not this orchestratin
    - A refused write — the agent starts, but the client's own guard denies one of its file edits (for example, a self-modification guard refusing an edit to an agent definition file) — does not stop the run. The `remedy` agent reports that location `refused`; log it. Then move on to the rest of this round's `remedy` agents. *The rest of this round still dispatches, and later rounds still run.*
 3. Collect the outcome each `remedy` agent reports, which is only a compact outcome — per file, its path and `accepted` (with any line it put back and any hedge it made direct), `restored` with the failed check(s), or `refused` with the reason the client's guard gave — never the brief or a file's contents.
    Take each `remedy` agent's reported outcome as given.
+   After each `remedy` agent's hand-back, write one line in this form: `<order> <element> — accepted (score a → b) | restored (<failed check>) | refused (<reason>)`. Name the hook in the `refused` reason when a hook refused the write.
+   Write that line in a reply as soon as the agent's outcome arrives, before your next tool call.
+   Write one line per location, also when several agents of the round return close together.
+   Show the user that one line for each hand-back. *Do not paste a `remedy` agent's report into the reply.*
+   Keep the rest of each report (its before → after pairs, `made_direct` and `made_specific` entries, `introduced`, `validate calls`, `put back`) for `## Finish`.
    Log every restore with its reason (the location's `element`, its files, and the failed check(s) reported).
    Log every refusal with its reason (the location's `element`, its files, and what the guard said).
    Give up a restored or refused location for the rest of this run: skip it in step 1 even if it reappears in a later round's index, matched by its `element` and `kind`, and at least one file in common with the given-up location's `files`.
    *Do not inspect the files or run a shell command to confirm a restore.*
-4. Call `validate(path, targets)` again before starting the next round.
+4. After the round's last hand-back, write one round-close line in the form `Round <kind> done — <n> accepted, <n> restored, <n> refused, <minutes> min`. Show the user that line.
+   Write the round-close line before the `validate` call that starts the next round.
+   Show all of the round's lines (one per location, then the round-close line) before that call. *Do not move to the next round's `validate` before the round's lines are shown.*
+   Call `validate(path, targets)` again before starting the next round.
    The locations re-number against the now-rewritten files.
    Use the new `order`s for that round's dispatches.
 
@@ -93,7 +112,7 @@ For each location, follow every section of `agents/remedy.md` from `## Brief ret
 Call `remedy_brief` for that location with the run's `path` and `targets`, as `## Brief retrieval` directs.
 Keep the 4-call bound on `validate` per file, the retry rule for a temporary error reply, the put-back, the best-version rule, and the restore rules of `## Validation and convergence` unchanged.
 Keep each file's original text in your own context, as `## Original text` directs.
-Write that text back verbatim on a restore.
+On a restore, write each file's original text back verbatim to its `path`.
 *Do not copy a file to a backup, a temporary copy, or any other path with a shell command.*
 *Do not run a shell command to read, edit, or write an instruction file.*
 Report each location's outcome in the form `## Outcome report` of `agents/remedy.md` gives.
@@ -104,19 +123,21 @@ Take that outcome through step 3 as a `remedy` agent's reported outcome.
 Call `validate(path, targets)` once more after the last pass.
 Report, in this order:
 
-1. The result: the project score before the run → now, and the finding count before → now.
-2. Per location, one table row each: the location's `element`, its outcome (`accepted`, `restored`, or `refused`), its files' score before → after, the rounds its agent used, what it kept (the `kept` counts), the lines it put back, and — for a restored location, the failed check that restored it, or for a refused location, the reason the client's guard gave.
-   List each hedge its agent made direct under an accepted location's row, as a change the user can see: `made direct: <before> → <after>`, with the sentence before and after as the agent reported them.
-   These are rewrites that turned a suggestion ("prefer X", "consider running X") into an order ("use X", "run X").
-   They are accepted, and listed so the user can undo any of them.
-3. What stays open: group `workflow.listed` by its shared `why` text.
-   Give each group one line per rule — its title with its ID as a link, `Title ([CORE:E:0004](url))`, from the reply's `rules` map, and its count — then the group's `why` once, after its rules.
-   Then list any location of `workflow.locations` still open, with the reason.
+1. The compression line, before → now, from the `compression:` line of the first and the last reply.
+2. "What your agent now reads differently": up to 5 before → after pairs, taken from the `gate_mover` and `conditional` fixes the agents reported.
+3. The total `introduced` count, summed over the accepted locations.
+4. The "Made direct" and "Made specific" lanes. Give each agent-reported `made_direct` and `made_specific` entry as `<before> → <after>`, so the user can undo it. A `made_direct` entry is a suggestion ("prefer X") turned into an order ("use X"). A `made_specific` entry is a kept instruction that gained a named construct.
+5. "Left alone on purpose": group `workflow.listed` by its `why`. Give each group one line per rule — its title with its ID as a link, `Title ([CORE:E:0004](url))`, and its count — then the group's `why` once, after its rules.
+6. The locations still open, each with the reason.
+7. Last, and secondary: the project score and the finding count, before → now.
 
-Write the same report as Markdown, with `<YYYY-MM-DD-HHMM>` as the local date and 24-hour time, to `.ails/reports/heal-<YYYY-MM-DD-HHMM>.md` under the project `path`.
-Name that `.ails/reports/heal-<YYYY-MM-DD-HHMM>.md` file in the reply.
+Write the same receipt as Markdown to `.ails/reports/heal-<YYYY-MM-DD-HHMM>.md` under the project `path`, with `<YYYY-MM-DD-HHMM>` as the local date and 24-hour time.
+Add an appendix to that report file with one entry per location: its `element`, outcome, files' score before → after, `kept` counts, lines put back, `validate calls`, and rounds used.
+Add the failed check to the entry of a `restored` location, and the refusal reason to the entry of a `refused` location.
+*Do not put the appendix in the reply: write it only to the `.ails/reports/heal-<YYYY-MM-DD-HHMM>.md` file.*
+Name the `.ails/reports/heal-<YYYY-MM-DD-HHMM>.md` file in the reply.
 
-Ask the user whether to stop at `## Finish` or continue.
-Continuing runs another pass of `## The loop` over every location in that validate reply's index whose `importance` is `gate_mover` or `conditional` and that this run has not given up on, matched by its `element` and `kind`, and at least one file in common with the given-up location's `files`.
-Dispatch with that index's `order`s, still one round per kind in index order, without asking when the user already approved every fix.
-That pass, too, ends at `## Finish`, which offers the choice again.
+Offer a second pass only when the last `validate` reply's `workflow.locations` holds a location whose `importance` is `gate_mover` or `conditional` and that this run has not given up on, matched by its `element` and `kind`, and at least one file in common with the given-up location's `files`.
+*Do not offer another pass when no such location remains.*
+A second pass runs `## The loop` over those locations only, with that reply's `order`s, still one round per kind in index order, without asking when the user already approved every fix.
+It ends at `## Finish`, which offers the choice again.

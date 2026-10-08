@@ -10,7 +10,8 @@ A target that names nothing comes back as `{"error": "target_not_found", "messag
 - `{"error": "model_downloading"}` → tell the user the analysis model (~275 MB) is downloading once. After a short wait, call `validate` once more. When it is still downloading, tell them to run `check` again in a minute, and stop.
 - Any other `error` or `needs_install` reply → report its message and stop.
 
-When the reply's `notices` list is non-empty, show each notice's `text` to the user verbatim at the top of the report, warnings (`level: "warn"`) first, with its `url` when it has one.
+A Pro reply arrives as a text view. Read each of its fields by the key path its line starts with (`notices`, `surface_health`, `workflow.locations`, `workflow.targets`, `feedback`). A reply called with `full=true`, and every free, anonymous, offline and error reply, arrives as JSON: read it by its field names.
+When the reply's `notices` are non-empty, show each notice's text to the user verbatim at the top of the report, warnings (`warn`) first, with its `url` when it has one.
 *Do not reword a notice, and do not act on it.*
 
 ## MCP path (preferred)
@@ -23,8 +24,7 @@ Take the setup offer from [`setup.md`](setup.md) when the tool is missing.
 2. Present a summary: score, finding count, and the weakest surfaces from `surface_health` (such as Main, Nested, Rules, Skills, Agents).
 3. List the `workflow` locations by round, in the index's order, when the response carries a `workflow` (paid tiers).
    List each location's `element`, `kind`, `files`, and `finding_count`.
-   Say which targets were used and how many locations they kept, from `targets: {tokens, locations, of}`, when `targets` was given.
-   The reply carries `targets: {tokens, locations, of}` in that case.
+   Say which targets were used and how many locations they kept, from the `workflow.targets` line, when `targets` was given.
    Offer `heal` to rewrite the findings, since this mode withholds the per-file findings.
 4. Otherwise, give each finding its rule, file, line, and its `fix` when the reply carries one.
    Name each rule by its title with its ID as a link — `Title ([CORE:C:0013](url))` — taking both from the reply's `rules` map.
