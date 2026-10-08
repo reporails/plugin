@@ -5,8 +5,12 @@ Run: python3 -m unittest discover plugins/reporails/tests
 """
 import json
 import os
+import shutil
+import signal
+import stat
 import subprocess
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -81,7 +85,7 @@ class HealProgressTest(unittest.TestCase):
         first = self.message(post("t1", *reports["t1"]))
         self.assertEqual(first, "1 skill-a — accepted (score 7.5 → 9.0)")
         second = self.message(post("t2", *reports["t2"]))
-        self.assertEqual(second, "2 skill-b — restored (dangling_fragments)")
+        self.assertEqual(second, "2 skill-b — restored (dangling_fragments: a sentence now dangles)")
         third = self.message(post("t3", *reports["t3"])).split("\n")
         self.assertEqual(len(third), 2)
         self.assertTrue(third[0].startswith("3 skill-c — refused ("), third[0])
@@ -173,6 +177,103 @@ class HealProgressTest(unittest.TestCase):
             done = subprocess.run(["sh", str(SCRIPT)], input=text, capture_output=True, text=True,
                                   env={**os.environ, "TMPDIR": self.tmp.name}, timeout=60)
             self.assertEqual((done.returncode, done.stdout, done.stderr), (0, "", ""))
+
+
+ROW = "/p/f.md | accepted | 7.0 → 9.0 | validate calls 1 | put back 0 | introduced 0 | open 0"
+SHELLS = ["sh"] + (["dash"] if shutil.which("dash") else [])
+
+
+class HealProgressRobustnessTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = Path(self.tmp.name) / f"reporails-heal-{SESSION}"
+
+    def env(self, path=None):
+        return {**os.environ, "TMPDIR": self.tmp.name, **({"PATH": path} if path else {})}
+
+    def run_script(self, payload, script=SCRIPT, shell="sh", path=None):
+        done = subprocess.run([shell, str(script)], input=json.dumps(payload, ensure_ascii=False), capture_output=True,
+                              text=True, encoding="utf-8", env=self.env(path), timeout=60)
+        return done
+
+    def test_event_detection_needs_no_gnu_sed_alternation(self):
+        # A sed without `\|` (BSD/macOS) must still tell Pre from Post.
+        real = shutil.which("sed")
+        fake = Path(self.tmp.name) / "fakebin"
+        fake.mkdir()
+        wrapper = fake / "sed"
+        wrapper.write_text('#!/bin/sh\nfor a in "$@"; do case "$a" in *\\\\\\|*) exit 1;; esac; done\nexec ' + real + ' "$@"\n')
+        wrapper.chmod(wrapper.stat().st_mode | stat.S_IXUSR)
+        path = f"{fake}:{os.environ['PATH']}"
+        for tid, order in (("b1", 1), ("b2", 2)):
+            done = self.run_script(pre(tid, order), path=path)
+            self.assertEqual((done.returncode, done.stdout), (0, ""))
+        first = self.run_script(post("b1", 1, "location 1 e\n" + ROW), path=path).stdout
+        self.assertNotIn("Round", first, "the first hand-back closed the round: Pre was read as Post")
+        self.assertIn("Round", self.run_script(post("b2", 2, "location 2 e\n" + ROW), path=path).stdout)
+
+    def test_markdown_table_row_with_leading_pipe_is_read(self):
+        self.run_script(pre("t1", 1))
+        report = "location 1 tbl\n| `/p/f.md` | accepted | 7.0 → 9.0 | validate calls 1 | put back 0 | introduced 0 | open 0 |"
+        out = json.loads(self.run_script(post("t1", 1, report)).stdout)["systemMessage"]
+        self.assertTrue(out.startswith("1 tbl — accepted (score 7.0 → 9.0)"), out)
+
+    def test_a_dispatch_that_never_returned_does_not_block_a_later_round(self):
+        self.run_script(pre("lost", 1))
+        batch = self.state / "batch"
+        old = int(time.time()) - 120
+        lines = [l.split("\t") for l in batch.read_text().splitlines()]
+        batch.write_text("".join("\t".join([l[0], l[1], l[2], str(old), l[4]]) + "\n" for l in lines))
+        self.run_script(pre("next", 1))
+        out = json.loads(self.run_script(post("next", 1, "location 1 e\n" + ROW)).stdout)["systemMessage"]
+        self.assertRegex(out.split("\n")[1], r"^Round skills done — 1 accepted, 0 restored, 0 refused, ")
+
+    def test_restored_reason_is_the_agents_own_text(self):
+        self.run_script(pre("r1", 1))
+        report = "location 1 e\n/p/f.md | restored | 8.0 → 8.0 | validate calls 4 | put back 1 | introduced 0 | open 1\n  brand_new_check failed, lost_instructions too  "
+        out = json.loads(self.run_script(post("r1", 1, report)).stdout)["systemMessage"]
+        self.assertTrue(out.startswith("1 e — restored (brand_new_check failed, lost_instructions too)"), out)
+
+    def test_missing_helper_never_blocks_the_dispatch(self):
+        for name in ("heal-progress.sh", "heal-notice.sh"):
+            bare = Path(self.tmp.name) / ("bare-" + name)
+            bare.mkdir()
+            shutil.copy(PLUGIN / "hooks" / name, bare / name)
+            for shell in SHELLS:
+                done = self.run_script(pre("z", 1), script=bare / name, shell=shell)
+                self.assertEqual((done.returncode, done.stdout), (0, ""), f"{name} under {shell}")
+
+    def start_dead_pid(self):
+        proc = subprocess.Popen(["true"])
+        proc.wait()
+        return proc.pid
+
+    def test_a_lock_of_a_dead_holder_is_taken_over(self):
+        (self.state / "lock.d").mkdir(parents=True)
+        (self.state / "lock.d" / "pid").write_text(str(self.start_dead_pid()))
+        started = time.time()
+        done = self.run_script(pre("l1", 1))
+        self.assertEqual(done.returncode, 0)
+        self.assertLess(time.time() - started, 5)
+        self.assertIn("l1", (self.state / "batch").read_text())
+
+    def test_a_lock_of_a_live_holder_is_waited_on_not_stolen(self):
+        holder = subprocess.Popen(["sleep", "60"])
+        self.addCleanup(holder.kill)
+        (self.state / "lock.d").mkdir(parents=True)
+        (self.state / "lock.d" / "pid").write_text(str(holder.pid))
+        waiter = subprocess.Popen(["sh", str(SCRIPT)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
+                                  encoding="utf-8", env=self.env())
+        self.addCleanup(waiter.kill)
+        waiter.stdin.write(json.dumps(pre("l2", 1)))
+        waiter.stdin.close()
+        time.sleep(13)
+        self.assertIsNone(waiter.poll(), "the hook stole a live holder's lock")
+        holder.kill()
+        holder.wait()
+        self.assertEqual(waiter.wait(timeout=20), 0)
+        self.assertIn("l2", (self.state / "batch").read_text())
 
 
 class HooksJsonTest(unittest.TestCase):

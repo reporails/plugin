@@ -4,22 +4,21 @@
 # on any other input, on a background launch, or on any failure.
 exec 2>/dev/null
 input=$(cat) || exit 0
-. "$(dirname "$0")/heal-common.sh" || exit 0
+common="$(dirname "$0")/heal-common.sh"
+# A missing helper must not abort the hook: exit 2 from a PreToolUse hook blocks the dispatch.
+[ -r "$common" ] || exit 0
+. "$common"
 
 heal_is_remedy "$input" || exit 0
 
-event=$(printf '%s' "$input" | grep -Eo '"hook_event_name"[[:space:]]*:[[:space:]]*"(Pre|Post)ToolUse"' | head -n 1 | sed 's/.*"\(Pre\|Post\)ToolUse"/\1/')
+event=$(heal_event "$input")
 [ -n "$event" ] || exit 0
 
-id=$(printf '%s' "$input" | grep -Eo '"tool_use_id"[[:space:]]*:[[:space:]]*"[^"]*"' | head -n 1 | sed 's/.*:[[:space:]]*"//; s/"$//' | tr -c 'A-Za-z0-9_-' '_')
+id=$(heal_tool_use_id "$input")
 [ -n "$id" ] || id="none-$$"
 
-# The leading "key: value" lines of the dispatch prompt, as they appear escaped in the JSON.
-prompt_field() {
-  printf '%s' "$input" | grep -Eo "\\\\n$1:[[:space:]]*[A-Za-z0-9_.-]+" | head -n 1 | sed "s/^.*$1:[[:space:]]*//"
-}
-order=$(prompt_field order)
-kind=$(prompt_field kind)
+order=$(heal_prompt_field "$input" order)
+kind=$(heal_prompt_field "$input" kind)
 [ -n "$order" ] || order="?"
 [ -n "$kind" ] || kind="unknown"
 
@@ -28,22 +27,31 @@ mkdir -p "$dir" || exit 0
 batch="$dir/batch"
 lock="$dir/lock.d"
 
-# Atomic lock: mkdir succeeds for exactly one hook; a lock left by a crashed hook is taken over.
+# Atomic lock: mkdir succeeds for exactly one hook, which records its pid. A lock whose holder is
+# gone is taken over by renaming it away (one waiter wins the rename); a live holder is waited on,
+# and after a minute the hook gives up without doing anything.
 tries=0
 until mkdir "$lock"; do
   tries=$((tries + 1))
-  if [ "$tries" -gt 100 ]; then
-    rmdir "$lock"
-    mkdir "$lock" || exit 0
-    break
+  [ "$tries" -le 600 ] || exit 0
+  holder=$(cat "$lock/pid")
+  if [ -n "$holder" ] && ! kill -0 "$holder" || { [ -z "$holder" ] && [ "$tries" -gt 300 ]; }; then
+    mv "$lock" "$lock.stale.$$" && rm -rf "$lock.stale.$$"
+    continue
   fi
   sleep 0.1 || sleep 1
 done
-trap 'rmdir "$lock"' EXIT
+trap 'rm -rf "$lock"' EXIT
+trap 'exit 0' HUP INT TERM
+printf '%s' "$$" > "$lock/pid"
 
 now=$(date +%s)
 
 if [ "$event" = Pre ]; then
+  # Entries from well before this dispatch burst belong to an earlier round that will not close.
+  if [ -f "$batch" ]; then
+    awk -F '\t' -v cutoff="$((now - 60))" '$4 >= cutoff' "$batch" > "$batch.new" && mv "$batch.new" "$batch"
+  fi
   printf '%s\t%s\t%s\t%s\tpending\n' "$id" "$order" "$kind" "$now" >> "$batch"
   exit 0
 fi
@@ -78,11 +86,10 @@ report=$(printf '%s' "$input" | awk '
 parsed=$(printf '%s\n' "$report" | awk '
   function clean(l) {
     gsub(/`/, "", l)
-    sub(/^[ \t]*([-*•][ \t]+)?/, "", l)
-    sub(/[ \t]+$/, "", l)
+    sub(/^[ \t]*([-*•|][ \t]*)?/, "", l)
+    sub(/[ \t|]+$/, "", l)
     return l
   }
-  BEGIN { checks = "lost_instructions|polarity_flips|lost_named|detached_constraints|dangling_fragments|lost_context|removed_structure|moved_list_items|invented_named|repeated_named|added_instructions|relabelled_negative_headings|added_conditions|dropped_conditions|narrowed_instructions|hedge_made_absolute|padded_lines" }
   {
     l = clean($0)
     if (match(l, /^location[ \t]+[0-9]+[ \t]+/)) { element = substr(l, RSTART + RLENGTH); next }
@@ -94,7 +101,6 @@ parsed=$(printf '%s\n' "$report" | awk '
     }
     if (rows > 0 && l != "") {
       if (tail[rows] == "") tail[rows] = l
-      rest[rows] = rest[rows] " " l
     }
   }
   END {
@@ -110,18 +116,9 @@ parsed=$(printf '%s\n' "$report" | awk '
       if (length(d) > 200) d = substr(d, 1, 200)
       if (d == "") d = "no reason given"
     } else if (first_restored) {
-      st = "restored"; d = ""
-      for (r = 1; r <= rows; r++) {
-        if (status[r] != "restored") continue
-        t = rest[r]
-        while (match(t, checks)) {
-          name = substr(t, RSTART, RLENGTH)
-          if (index(", " d ", ", ", " name ", ") == 0) d = (d == "" ? name : d ", " name)
-          t = substr(t, RSTART + RLENGTH)
-        }
-      }
-      if (d == "") d = (tail[first_restored] != "" ? tail[first_restored] : "score " score[first_restored])
+      st = "restored"; d = tail[first_restored]
       if (length(d) > 200) d = substr(d, 1, 200)
+      if (d == "") d = "score " score[first_restored]
     } else {
       st = "accepted"; d = ""
       for (r = 1; r <= rows; r++) d = (d == "" ? score[r] : d ", " score[r])

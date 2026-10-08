@@ -3,7 +3,10 @@
 # remedy agent starts. Never blocks; prints nothing on any other input.
 exec 2>/dev/null
 input=$(cat) || exit 0
-. "$(dirname "$0")/heal-common.sh" || exit 0
+common="$(dirname "$0")/heal-common.sh"
+# A missing helper must not abort the hook: exit 2 from a PreToolUse hook blocks the dispatch.
+[ -r "$common" ] || exit 0
+. "$common"
 
 heal_is_remedy "$input" || exit 0
 session=$(heal_session "$input")
