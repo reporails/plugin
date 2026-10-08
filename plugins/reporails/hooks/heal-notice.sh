@@ -3,11 +3,10 @@
 # remedy agent starts. Never blocks; prints nothing on any other input.
 exec 2>/dev/null
 input=$(cat) || exit 0
+. "$(dirname "$0")/heal-common.sh" || exit 0
 
-printf '%s' "$input" | grep -Eq '"subagent_type"[[:space:]]*:[[:space:]]*"reporails:remedy"' || exit 0
-
-session=$(printf '%s' "$input" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1 | tr -c 'A-Za-z0-9_-' '_')
-[ -n "$session" ] || session=nosession
+heal_is_remedy "$input" || exit 0
+session=$(heal_session "$input")
 
 # Project path as it appears (already JSON-escaped) in the dispatch prompt's leading "path:" line.
 path=$(printf '%s' "$input" | sed -n 's/.*"prompt"[[:space:]]*:[[:space:]]*"path:[[:space:]]*//p' | head -n 1 | sed 's/\\\\/@RPBS@/g; s/\\"/@RPQ@/g; s/\\n.*//; s/".*//; s/@RPBS@/\\\\/g; s/@RPQ@/\\"/g')

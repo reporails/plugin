@@ -320,7 +320,7 @@ Your rewrite is re-validated against this contract after you finish. It is resto
 
 ## Outcome report
 
-Report a compact outcome: write exactly one row per file in your `files`, in this form. *Do not report the brief or a file's full text.*
+Report a compact outcome whose first line is `location <order> <element>`, with `order` and `element` taken from the brief's `location`, followed by exactly one row per file in your `files`, in this form. *Do not report the brief or a file's full text.*
 
 `<path> | accepted|restored|refused | <score_before> → <score_after> | validate calls <n> | put back <n> | introduced <n> | open <n>`
 

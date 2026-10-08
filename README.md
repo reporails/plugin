@@ -52,7 +52,7 @@ Cursor, Copilot (VS Code) and Antigravity update by hand: run `git pull` in your
 ## Requirements
 
 - [`uv`](https://docs.astral.sh/uv/) installed — every agent's MCP config launches the server with `uvx`.
-- The first start downloads the command-line tool (`reporails-cli>=0.6.1,<0.7`) with its dependencies and about 275 MB of model files, once per machine, so it needs network access. On a slow connection the agent can show the server as failed to connect; reconnect it once the download finishes (Claude Code: `/mcp`), or restart the agent.
+- The first start downloads the command-line tool (`reporails-cli>=0.6.2,<0.7`) with its dependencies and about 275 MB of model files, once per machine, so it needs network access. On a slow connection the agent can show the server as failed to connect; reconnect it once the download finishes (Claude Code: `/mcp`), or restart the agent.
 - `pip install reporails-cli` does not provide `uvx`, so it cannot start the plugin's server.
 - Fixes (`heal`) need a Pro subscription and a sign-in: `ails login`, or `npx @reporails/cli@0.6 login` when you have only the plugin and no `ails` command.
 

@@ -39,8 +39,8 @@ A `workflow.locations` table over its size budget lists later kinds as one line 
 
 ## Start block
 
-Give the user this information once, in a reply written after the initial `validate` reply and before the dispatch of round 1.
-Dispatch round 1's `remedy` agents only after the start block is shown. *Do not dispatch round 1 before the start block is shown.*
+Give the user this information once, as reply text the user sees, written after the initial `validate` reply and before the message that dispatches round 1.
+Dispatch round 1's `remedy` agents only after the start block is shown. *Do not dispatch round 1 before the start block is shown, and do not write the start block only in your thinking.*
 It is information, not a question, so a user who approved every fix still gets it.
 
 1. The scope: the rounds in order, each with its `kind` and the locations it holds (each one's `element`).
@@ -65,10 +65,10 @@ That is each `remedy` agent's own job, in its own context, not this orchestratin
    A user who already approved every fix for the whole run is not asked again.
 2. Dispatch one `remedy` agent per location, all of the round at once.
    Pass the project's absolute `path`, the `targets` this run is using, the location's `order`, and its `kind` — nothing else.
-   Make the dispatch prompt's first line `path: <the project's absolute path>`, followed by the targets, the order, and the kind.
-   Send every dispatch of the round in a single message, one `remedy` agent call per location.
+   Write the dispatch prompt as these four lines: `path: <the project's absolute path>`, `targets: <the targets, or (none)>`, `order: <the location's order>`, `kind: <the location's kind>`.
+   Send every dispatch of the round in a single message, one `remedy` agent call per location, each in the foreground (not in the background).
    *Do not wait for one location's outcome before you dispatch the next location in the round.*
-   Wait for all `remedy` agents of the round.
+   Wait for all `remedy` agents of the round in that message. *Do not run a `remedy` agent in the background.*
    Follow `## Inline rewrite` for the round, with no dispatch, when the client has no sub-agent tool.
    Follow `## Inline rewrite` for the round too when a dispatch fails because the client cannot start a `remedy` agent at all.
    *Do not treat a refusal by the client's permission or safety check as a client that cannot start a `remedy` agent.*
@@ -78,7 +78,8 @@ That is each `remedy` agent's own job, in its own context, not this orchestratin
    - A refused write — the agent starts, but the client's own guard denies one of its file edits (for example, a self-modification guard refusing an edit to an agent definition file) — does not stop the run. The `remedy` agent reports that location `refused`; log it. Then move on to the rest of this round's `remedy` agents. *The rest of this round still dispatches, and later rounds still run.*
 3. Collect the outcome each `remedy` agent reports, which is only a compact outcome — per file, its path and `accepted` (with any line it put back and any hedge it made direct), `restored` with the failed check(s), or `refused` with the reason the client's guard gave — never the brief or a file's contents.
    Take each `remedy` agent's reported outcome as given.
-   After each `remedy` agent's hand-back, write one line in this form: `<order> <element> — accepted (score a → b) | restored (<failed check>) | refused (<reason>)`. Name the hook in the `refused` reason when a hook refused the write.
+   On Claude Code, the plugin prints each location's line and the round-close line itself as each `remedy` agent returns. *Do not write them again on Claude Code.*
+   On every other client, after each `remedy` agent's hand-back, write one line in this form: `<order> <element> — accepted (score a → b) | restored (<failed check>) | refused (<reason>)`. Name the hook in the `refused` reason when a hook refused the write.
    Write that line in a reply as soon as the agent's outcome arrives, before your next tool call.
    Write one line per location, also when several agents of the round return close together.
    Show the user that one line for each hand-back. *Do not paste a `remedy` agent's report into the reply.*
@@ -87,9 +88,9 @@ That is each `remedy` agent's own job, in its own context, not this orchestratin
    Log every refusal with its reason (the location's `element`, its files, and what the guard said).
    Give up a restored or refused location for the rest of this run: skip it in step 1 even if it reappears in a later round's index, matched by its `element` and `kind`, and at least one file in common with the given-up location's `files`.
    *Do not inspect the files or run a shell command to confirm a restore.*
-4. After the round's last hand-back, write one round-close line in the form `Round <kind> done — <n> accepted, <n> restored, <n> refused, <minutes> min`. Show the user that line.
-   Write the round-close line before the `validate` call that starts the next round.
-   Show all of the round's lines (one per location, then the round-close line) before that call. *Do not move to the next round's `validate` before the round's lines are shown.*
+4. On Claude Code, the plugin has printed the round-close line after the round's last hand-back. On every other client, after the round's last hand-back, write one round-close line in the form `Round <kind> done — <n> accepted, <n> restored, <n> refused, <minutes> min`. Show the user that line.
+   On every other client, write the round-close line before the `validate` call that starts the next round.
+   On every other client, show all of the round's lines (one per location, then the round-close line) before that call. *Do not move to the next round's `validate` before the round's lines are shown.*
    Call `validate(path, targets)` again before starting the next round.
    The locations re-number against the now-rewritten files.
    Use the new `order`s for that round's dispatches.

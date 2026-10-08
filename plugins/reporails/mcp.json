@@ -4,7 +4,7 @@
     "reporails": {
       "type": "stdio",
       "command": "uvx",
-      "args": ["--from", "reporails-cli>=0.6.1,<0.7", "reporails-mcp"]
+      "args": ["--from", "reporails-cli>=0.6.2,<0.7", "reporails-mcp"]
     }
   }
 }
