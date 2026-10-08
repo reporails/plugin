@@ -84,8 +84,8 @@ When the skill runs without the plugin, register the MCP server for the user's a
 In Claude Code, run:
 
 ```bash
-claude mcp add reporails -- uvx --from 'reporails-cli>=0.6.0,<0.7' reporails-mcp
+claude mcp add reporails -- uvx --from 'reporails-cli>=0.6.2,<0.7' reporails-mcp
 ```
 
-For another agent, add an MCP server entry naming the same command and args (`uvx --from 'reporails-cli>=0.6.0,<0.7' reporails-mcp`) to that agent's own MCP config file.
+For another agent, add an MCP server entry naming the same command and args (`uvx --from 'reporails-cli>=0.6.2,<0.7' reporails-mcp`) to that agent's own MCP config file.
 Restart the agent afterward so it loads the `reporails` server entry.

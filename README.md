@@ -6,7 +6,7 @@ A portable [Agent Plugins](https://agent-plugins.org) package delivering AI inst
 
 | File | What | Read by |
 |---|---|---|
-| `plugins/reporails/skills/ails/` | The `ails` skill — preflight + check + heal + explain, including the remedy loop (validate → rewrite → re-validate) | all 5 |
+| `plugins/reporails/skills/ails/` | The `ails` skill — preflight + check + heal + explain, including fixing your instruction files and re-checking them | all 5 |
 | `plugins/reporails/plugin.json` | Portable Agent Plugins manifest | codex, cursor, copilot (+ supplies antigravity's `name`) |
 | `plugins/reporails/mcp.json` | Portable MCP config (`type: stdio`) | codex, cursor, copilot |
 | `plugins/reporails/mcp_config.json` | Antigravity MCP config | antigravity |
@@ -66,7 +66,7 @@ uv tool install reporails-cli
 
 - `preflight <skill|agent|rule|main>` — fetch the workflow-ordered rules before you author
 - `check` — validate instruction files, score, per-finding rule references
-- `heal` — rewrite instruction-file locations toward their ideal form (paid account)
+- `heal` — fix your instruction files and report what changed and what was left for you (paid account)
 - `explain <rule_id>` — single-rule detail with Pass / Fail examples
 
 The slash-command namespace varies by agent (e.g. `/reporails:ails check` in Claude Code); the skill body drives the same loop everywhere.

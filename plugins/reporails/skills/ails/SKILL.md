@@ -1,6 +1,6 @@
 ---
 name: ails
-description: "Preflight rules before authoring a skill or agent, validate instruction files, present score with per-file findings, rewrite instruction-file locations whole where a paid account allows it, explain what a specific rule checks. Routes preflight, check, heal, and explain subcommands to MCP tools or reporails-cli. Use when about to write a SKILL.md / agent definition / rule and want the constraints up front, or when checking / fixing existing instruction files."
+description: "Preflight rules before authoring a skill or agent, validate instruction files, present score with per-file findings, fix instruction-file locations where a paid account allows it, explain what a specific rule checks. Routes preflight, check, heal, and explain subcommands to MCP tools or reporails-cli. Use when about to write a SKILL.md / agent definition / rule and want the constraints up front, or when checking / fixing existing instruction files."
 license: BUSL-1.1
 compatibility: "Requires `uv`: the plugin starts the reporails-cli engine with it. The `setup` subcommand walks through installing both."
 metadata:
@@ -34,7 +34,7 @@ Follow the steps listed in that `workflows/<subcommand>.md` file.
 |--------------------------------|----------------------------------------------------|-------------------------------------------------------------------------|
 | `preflight <capability>`      | [`workflows/preflight.md`](workflows/preflight.md) | Fetches the rules for authoring a `SKILL.md`, an agent, or a rule       |
 | `check [path] [targets…]`     | [`workflows/check.md`](workflows/check.md)         | Validates instruction files, reports the score and per-file findings    |
-| `heal [path] [targets…]`      | [`workflows/heal.md`](workflows/heal.md)           | Rewrites instruction-file locations whole, one round per kind (paid account) |
+| `heal [path] [targets…]`      | [`workflows/heal.md`](workflows/heal.md)           | Fixes your instruction files one kind at a time and reports what changed and what it left for you (paid account) |
 | `explain <rule_id>`           | [`workflows/explain.md`](workflows/explain.md)     | Shows what one rule checks and how to satisfy it                        |
 | `setup`                        | [`workflows/setup.md`](workflows/setup.md)         | Installs the engine and connects the `reporails` MCP server to the agent |
 
