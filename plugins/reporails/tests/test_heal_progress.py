@@ -53,6 +53,38 @@ def post(tool_use_id, order, report, kind="skills", agent=REMEDY, session=SESSIO
     }
 
 
+def async_post(tool_use_id, order, kind="skills", session=SESSION):
+    body = post(tool_use_id, order, "", kind=kind, session=session)
+    body["tool_input"]["run_in_background"] = True
+    body["tool_response"] = {"isAsync": True, "status": "async_launched", "agentId": "a" + tool_use_id}
+    return body
+
+
+def notification(tool_use_id, report, status="completed"):
+    return (
+        "<task-notification>\n<task-id>ae50acfc113748b99</task-id>\n"
+        f"<tool-use-id>{tool_use_id}</tool-use-id>\n"
+        "<output-file>/tmp/claude-1000/x/tasks/ae50acfc113748b99.output</output-file>\n"
+        f"<status>{status}</status>\n<summary>Agent \"d\" finished</summary>\n"
+        "<note>A task-notification fires each time this agent stops.</note>\n"
+        f"<result>{report}</result>\n"
+        "<usage><subagent_tokens>17696</subagent_tokens><tool_uses>0</tool_uses><duration_ms>4534</duration_ms></usage>\n"
+        "</task-notification>"
+    )
+
+
+def user_prompt(text, session=SESSION):
+    return {
+        "session_id": session,
+        "transcript_path": "/tmp/t.jsonl",
+        "cwd": "/abs/project",
+        "prompt_id": "20b8c000-4f8e-4c9b-9e1e-41b73df7d231",
+        "permission_mode": "acceptEdits",
+        "hook_event_name": "UserPromptSubmit",
+        "prompt": text,
+    }
+
+
 class HealProgressTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -92,6 +124,69 @@ class HealProgressTest(unittest.TestCase):
         self.assertIn("guard-config", third[0])
         self.assertIn('"no edits"', third[0])
         self.assertRegex(third[1], r"^Round skills done — 1 accepted, 1 restored, 1 refused, \d+\.\d min$")
+
+    REPORT_1 = "location 1 skill-a\n/p/a/SKILL.md | accepted | 7.5 → 9.0 | validate calls 2 | put back 0 | introduced 0 | open 0"
+    REPORT_2 = "location 2 skill-b\n`/p/b/SKILL.md | restored | 8.0 → 8.0 | validate calls 4 | put back 1 | introduced 0 | open 1`\n- dangling_fragments: a sentence now dangles"
+
+    def background_round(self):
+        for tid, order in (("b1", 1), ("b2", 2)):
+            self.assertEqual(self.run_hook(pre(tid, order)), "")
+        for tid, order in (("b1", 1), ("b2", 2)):
+            self.assertEqual(self.run_hook(async_post(tid, order)), "")
+
+    def test_background_notifications_print_a_line_each_and_the_last_closes_the_round(self):
+        self.background_round()
+        first = self.message(user_prompt(notification("b1", self.REPORT_1)))
+        self.assertEqual(first, "1 skill-a — accepted (score 7.5 → 9.0)")
+        second = self.message(user_prompt(notification("b2", self.REPORT_2))).split("\n")
+        self.assertEqual(second[0], "2 skill-b — restored (dangling_fragments: a sentence now dangles)")
+        self.assertEqual(len(second), 2)
+        self.assertRegex(second[1], r"^Round skills done — 1 accepted, 1 restored, 0 refused, \d+\.\d min$")
+
+    def test_one_prompt_carrying_two_notifications_prints_both_lines_and_one_close(self):
+        self.background_round()
+        text = notification("b1", self.REPORT_1) + "\n" + notification("b2", self.REPORT_2)
+        lines = self.message(user_prompt(text)).split("\n")
+        self.assertEqual(len(lines), 3, lines)
+        self.assertEqual(lines[0], "1 skill-a — accepted (score 7.5 → 9.0)")
+        self.assertTrue(lines[1].startswith("2 skill-b — restored ("), lines[1])
+        self.assertRegex(lines[2], r"^Round skills done — 1 accepted, 1 restored, 0 refused, \d+\.\d min$")
+
+    def test_a_notification_for_an_unknown_tool_use_id_prints_nothing(self):
+        self.background_round()
+        self.assertEqual(self.run_hook(user_prompt(notification("other", self.REPORT_1))), "")
+        # the round is still open: the real hand-backs still close it
+        self.message(user_prompt(notification("b1", self.REPORT_1)))
+        self.assertIn("Round", self.message(user_prompt(notification("b2", self.REPORT_2))))
+
+    def test_a_notification_with_no_recorded_batch_prints_nothing(self):
+        self.assertEqual(self.run_hook(user_prompt(notification("b1", self.REPORT_1))), "")
+
+    def test_a_repeated_notification_prints_nothing_the_second_time(self):
+        self.background_round()
+        self.message(user_prompt(notification("b1", self.REPORT_1)))
+        self.assertEqual(self.run_hook(user_prompt(notification("b1", self.REPORT_1))), "")
+
+    def test_a_plain_user_prompt_prints_nothing(self):
+        self.background_round()
+        self.assertEqual(self.run_hook(user_prompt("please continue with the heal")), "")
+        self.assertEqual(self.run_hook(user_prompt("")), "")
+
+    def test_a_notification_without_a_readable_report_prints_nothing(self):
+        self.background_round()
+        self.assertEqual(self.run_hook(user_prompt(notification("b1", "Agent stopped before reporting."))), "")
+
+    def test_compact_json_notifications_are_read(self):
+        self.background_round()
+        out = self.message(user_prompt(notification("b1", self.REPORT_1)), compact=True)
+        self.assertEqual(out, "1 skill-a — accepted (score 7.5 → 9.0)")
+
+    def test_foreground_and_background_hand_backs_share_one_round(self):
+        self.run_hook(pre("f1", 1))
+        self.run_hook(pre("b2", 2))
+        self.run_hook(async_post("b2", 2))
+        self.assertEqual(self.message(post("f1", 1, self.REPORT_1)), "1 skill-a — accepted (score 7.5 → 9.0)")
+        self.assertIn("Round", self.message(user_prompt(notification("b2", self.REPORT_2))))
 
     def test_non_remedy_agent_prints_nothing(self):
         self.assertEqual(self.run_hook(pre("x1", 1, agent="general-purpose")), "")
@@ -285,6 +380,11 @@ class HooksJsonTest(unittest.TestCase):
         for event in ("PreToolUse", "PostToolUse"):
             wired = [m for m, c in self.commands(event) if "heal-progress.sh" in c]
             self.assertEqual(wired, ["Agent|Task"], event)
+
+    def test_progress_script_is_wired_on_user_prompt_submit_without_a_matcher(self):
+        entries = json.loads(HOOKS_JSON.read_text(encoding="utf-8"))["hooks"]["UserPromptSubmit"]
+        wired = [e.get("matcher") for e in entries for h in e["hooks"] if "heal-progress.sh" in h["command"]]
+        self.assertEqual(wired, [None])
 
     def test_heal_notice_is_still_wired(self):
         wired = [m for m, c in self.commands("PreToolUse") if "heal-notice.sh" in c]

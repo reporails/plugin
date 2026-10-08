@@ -78,7 +78,7 @@ That is each `remedy` agent's own job, in its own context, not this orchestratin
    - A refused write — the agent starts, but the client's own guard denies one of its file edits (for example, a self-modification guard refusing an edit to an agent definition file) — does not stop the run. The `remedy` agent reports that location `refused`; log it. Then move on to the rest of this round's `remedy` agents. *The rest of this round still dispatches, and later rounds still run.*
 3. Collect the outcome each `remedy` agent reports, which is only a compact outcome — per file, its path and `accepted` (with any line it put back and any hedge it made direct), `restored` with the failed check(s), or `refused` with the reason the client's guard gave — never the brief or a file's contents.
    Take each `remedy` agent's reported outcome as given.
-   On Claude Code, the plugin prints each location's line and the round-close line itself as each `remedy` agent returns. *Do not write them again on Claude Code.*
+   On Claude Code, the plugin prints each location's line and the round-close line itself as each `remedy` agent returns, whether the client ran it in the foreground or the background. *Do not write them again on Claude Code.*
    On every other client, after each `remedy` agent's hand-back, write one line in this form: `<order> <element> — accepted (score a → b) | restored (<failed check>) | refused (<reason>)`. Name the hook in the `refused` reason when a hook refused the write.
    Write that line in a reply as soon as the agent's outcome arrives, before your next tool call.
    Write one line per location, also when several agents of the round return close together.
