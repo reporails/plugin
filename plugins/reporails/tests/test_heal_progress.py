@@ -288,14 +288,48 @@ class HealProgressTest(unittest.TestCase):
         out = self.message(post("n2", 2, rep(2, "skill-b", "accepted", "score 7.5 → 9.0"))).split("\n")
         self.assertRegex(out[1], r"^Round skills done — 2 accepted, 0 restored, 0 refused, ")
 
-    def test_a_long_detail_is_cut_between_words_never_inside_a_character(self):
-        detail = "score " + ", ".join(f"7.{i % 10} → 9.{i % 10}" for i in range(20))
-        self.run_hook(pre("long", 1))
-        line = self.message(post("long", 1, rep(1, "skill-a", "accepted", detail))).split("\n")[0]
-        self.assertNotIn("\ufffd", line)
-        self.assertTrue(line.endswith("…)"), line)
-        self.assertLessEqual(len(line.encode("utf-8")), 260)
-        self.assertTrue(detail.startswith(line.split("(", 1)[1][:-2].rstrip("…").rstrip(", ")))
+    def hook_bytes(self, payload):
+        done = subprocess.run(
+            ["sh", str(SCRIPT)], input=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            capture_output=True, env={**os.environ, "TMPDIR": self.tmp.name}, timeout=60,
+        )
+        return done.stdout
+
+    def test_a_long_detail_is_printed_as_given_and_stays_valid_utf8(self):
+        details = [
+            "日" * 300,
+            "a " + "日本" * 150,
+            "score " + ", ".join(f"7.{i % 10} → 9.{i % 10}" for i in range(40)),
+        ]
+        for i, detail in enumerate(details):
+            self.run_hook(pre(f"long{i}", 1))
+            raw = self.hook_bytes(post(f"long{i}", 1, f"outcome: 1 | e | accepted | {detail}"))
+            line = json.loads(raw.decode("utf-8"))["systemMessage"].split("\n")[0]
+            self.assertEqual(line, f"1 e — accepted ({detail})")
+
+    def test_the_detail_keeps_its_own_underscores_stars_and_backticks(self):
+        cases = {
+            "check __init__": "check __init__",
+            "see `a|b` here": "see `a|b` here",
+            "uses *y* and _z_": "uses *y* and _z_",
+            "ends with a star *": "ends with a star *",
+        }
+        for i, (detail, shown) in enumerate(cases.items()):
+            self.run_hook(pre(f"k{i}", 1))
+            line = self.message(post(f"k{i}", 1, f"outcome: 1 | e | restored | {detail}")).split("\n")[0]
+            self.assertEqual(line, f"1 e — restored ({shown})")
+        self.run_hook(pre("kw", 1))
+        wrapped = "**outcome: 1 | e | restored | check __init__**"
+        self.assertEqual(self.message(post("kw", 1, wrapped)).split("\n")[0], "1 e — restored (check __init__)")
+
+    def test_the_last_valid_outcome_line_wins_over_a_later_invalid_one(self):
+        for i, tail in enumerate(("Outcome: all done", "outcome: 1 | e | weird | x", "Location outcome: pending")):
+            self.run_hook(pre(f"v{i}", 1))
+            report = f"outcome: 1 | e | accepted | ok\n{tail}"
+            self.assertEqual(self.message(post(f"v{i}", 1, report)).split("\n")[0], "1 e — accepted (ok)")
+        self.run_hook(pre("v9", 1))
+        two = "outcome: 1 | e | restored | first\noutcome: 1 | e | accepted | second\noutcome: nothing"
+        self.assertEqual(self.message(post("v9", 1, two)).split("\n")[0], "1 e — accepted (second)")
 
     def test_a_lead_in_line_never_enters_the_detail(self):
         self.run_hook(pre("l1", 2))

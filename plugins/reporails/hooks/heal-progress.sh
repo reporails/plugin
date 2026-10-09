@@ -78,34 +78,37 @@ heal_record() {
   _id=$1 _order=$2 _kind=$3
   # The only line read is the report's `outcome: <order> | <element> | <accepted, restored or refused> | <detail>`.
   # A hand-back without a valid one is recorded as refused, so the round always closes.
+  # The detail is printed as the agent gave it; only the line's own framing is removed.
   parsed=$(printf '%s\n' "$4" | awk '
+  function strip_end(ch, n) {
+    while (n > 0 && substr(l, length(l), 1) == ch) { l = substr(l, 1, length(l) - 1); n-- }
+  }
   {
     l = $0
-    gsub(/`/, "", l)
-    sub(/^[ \t>*•_|-]+/, "", l)
-    if (tolower(substr(l, 1, 8)) == "outcome:") {
-      l = substr(l, 9)
-      sub(/^[ \t*_]+/, "", l)
-      sub(/[ \t|*_]+$/, "", l)
-      line = l
+    sub(/\r$/, "", l)
+    if (!match(l, /^[ \t>*•_`|-]*[Oo][Uu][Tt][Cc][Oo][Mm][Ee]:/)) next
+    prefix = substr(l, 1, RLENGTH - 8)
+    l = substr(l, RLENGTH + 1)
+    sub(/^[ \t*_`]+/, "", l)
+    sub(/[ \t]+$/, "", l)
+    # Emphasis or code that wraps the whole line is removed symmetrically: as many closers as openers.
+    stars = prefix; ticks = prefix; unders = prefix
+    gsub(/[^*]/, "", stars); gsub(/[^`]/, "", ticks); gsub(/[^_]/, "", unders)
+    strip_end("*", length(stars)); strip_end("`", length(ticks)); strip_end("_", length(unders))
+    # A table row has its closing pipe.
+    if (index(prefix, "|") > 0) { sub(/[ \t]*\|[ \t]*$/, "", l) }
+    sub(/[ \t]+$/, "", l)
+    # Fields one to three end at a pipe; the detail is the rest, pipes and all, as given.
+    rest = l
+    for (k = 1; k <= 3; k++) {
+      if (match(rest, /[ \t]*\|[ \t]*/)) { f[k] = substr(rest, 1, RSTART - 1); rest = substr(rest, RSTART + RLENGTH) }
+      else { f[k] = rest; rest = "" }
     }
+    if (f[3] !~ /^(accepted|restored|refused)$/) next
+    d = rest
+    el = f[2]; st = f[3]; det = d; found = 1
   }
-  END {
-    if (line == "") exit
-    n = split(line, f, /[ \t]*\|[ \t]*/)
-    if (f[3] !~ /^(accepted|restored|refused)$/) exit
-    d = f[4]
-    for (i = 5; i <= n; i++) d = d " | " f[i]
-    if (length(d) > 200) {
-      # Cut at a space (never inside a multi-byte character, whatever the awk counts in).
-      for (c = 200; c > 1 && substr(d, c, 1) != " "; c--) ;
-      if (c <= 1) c = 200
-      d = substr(d, 1, c - 1)
-      sub(/[ \t,]+$/, "", d)
-      d = d "…"
-    }
-    print f[2]; print f[3]; print d
-  }')
+  END { if (found) { print el; print st; print det } }')
   if [ -n "$parsed" ]; then
     element=$(printf '%s\n' "$parsed" | sed -n 1p)
     status=$(printf '%s\n' "$parsed" | sed -n 2p)
@@ -153,7 +156,9 @@ fi
 [ -n "$out" ] || exit 0
 message=$out
 
-printf '%s' "$message" | tr -d '\000-\010\013-\037' | awk '
+# Bytes that are not valid UTF-8 are dropped so the JSON is always valid.
+sanitize() { if command -v iconv >/dev/null; then iconv -c -f UTF-8 -t UTF-8; else cat; fi; }
+printf '%s' "$message" | tr -d '\000-\010\013-\037' | sanitize | awk '
   BEGIN { printf "{\"systemMessage\": \"" }
   { gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); printf "%s%s", (NR > 1 ? "\\n" : ""), $0 }
   END { printf "\"}\n" }'
