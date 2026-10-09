@@ -40,8 +40,10 @@ A `workflow.locations` table over its size budget lists later kinds as one line 
 
 ## Start block
 
-Give the user this information once, as reply text the user sees, written after the initial `validate` reply and before the message that dispatches round 1.
-Dispatch round 1's `remedy` agents only after the start block is shown. *Do not dispatch round 1 before the start block is shown, and do not write the start block only in your thinking.*
+Give the user this information once, as reply text the user sees, on every path and every client.
+Write it in a reply after the initial `validate` reply and before the `heal_apply` call, whether you work the locations with `remedy` agents or inline.
+Call `heal_apply` and start round 1 only after the start block is shown. *Do not call `heal_apply` or start round 1 before the start block is shown, and do not write the start block only in your thinking.*
+Show the start block before any other reply text or tool call that follows the initial `validate` reply.
 It is information, not a question, so a user who approved every fix still gets it.
 
 1. The scope: the rounds in order, each with its `kind` and the locations it holds (each one's `element`).
@@ -55,7 +57,8 @@ It is information, not a question, so a user who approved every fix still gets i
 
 ## Apply the no-judgment fixes
 
-After the start block is shown and before round 1, make every fix that needs no decision in one call.
+Call `heal_apply` only after the start block is shown.
+Before round 1, make every fix that needs no decision in one call.
 Find the `reporails` MCP `heal_apply` tool by the name ending `__heal_apply`, as `## Tool detection` in [`setup.md`](setup.md) directs for `validate`.
 Call `heal_apply(path, targets)` once, with the run's `targets`. *Do not call it again in this run.*
 Show the reply's first line to the user verbatim, in the form `heal_apply: <n> fixed · <m> left for a decision · <k> put back`.
@@ -92,7 +95,7 @@ The index order IS the round order: a round is a consecutive run of locations sh
    - A refused write — the agent starts, but the client's own guard denies one of its file edits (for example, a self-modification guard refusing an edit to an agent definition file) — does not stop the run. The `remedy` agent reports that location `refused`; log it. Then move on to the rest of this round's `remedy` agents. *The rest of this round still dispatches, and later rounds still run.*
 3. Collect the outcome each `remedy` agent reports, which is only a compact outcome — per file, its path and `accepted` (with its score before → after, its `introduced` count, up to 3 before → after pairs, and any `left:` lines), `restored` with the failed check(s), or `refused` with the reason the client's guard gave — never the brief or a file's contents.
    Take each `remedy` agent's reported outcome as given.
-   On Claude Code, the plugin prints each location's line and the round-close line itself as each `remedy` agent returns, whether the client ran it in the foreground or the background. *Do not write them again on Claude Code.*
+   On Claude Code, the plugin prints the line of each location a dispatched `remedy` sub-agent worked (a dispatch through the client's sub-agent tool) itself as each sub-agent returns, whether the client ran it in the foreground or the background. *Do not write that line again on Claude Code for such a location.*
    On every other client, after each `remedy` agent's hand-back, write one line in this form: `<order> <element> — accepted (score a → b) | restored (<failed check>) | refused (<reason>)`. Name the hook in the `refused` reason when a hook refused the write.
    Write that line in a reply as soon as the agent's outcome arrives, before your next tool call.
    Write one line per location, also when several agents of the round return close together.
@@ -102,7 +105,7 @@ The index order IS the round order: a round is a consecutive run of locations sh
    Log every refusal with its reason (the location's `element`, its files, and what the guard said).
    Give up a restored or refused location for the rest of this run: skip it in step 1 even if it reappears in a later round's index, matched by its `element` and `kind`, and at least one file in common with the given-up location's `files`.
    *Do not inspect the files or run a shell command to confirm a restore.*
-4. On Claude Code, the plugin has printed the round-close line after the round's last hand-back. On every other client, after the round's last hand-back, write one round-close line in the form `Round <kind> done — <n> accepted, <n> restored, <n> refused, <minutes> min`. Show the user that line.
+4. On Claude Code, the plugin has printed the round-close line after the last hand-back of a round whose every location a dispatched `remedy` sub-agent worked. In a round with an inline location, including a round where a dispatch fell back to the inline path, write the round-close line yourself, covering the whole round, on every client. On every other client, after the round's last hand-back, write one round-close line in the form `Round <kind> done — <n> accepted, <n> restored, <n> refused, <minutes> min`. Show the user that line.
    On every other client, write the round-close line before the `validate` call that starts the next round.
    On every other client, show all of the round's lines (one per location, then the round-close line) before that call. *Do not move to the next round's `validate` before the round's lines are shown.*
    Call `validate(path, targets)` again before starting the next round.
@@ -123,6 +126,8 @@ Work the round's locations yourself, in `order`, one location at a time.
 *Do not start a location before the previous location's outcome is final.*
 For each location, with yourself as the `remedy` agent, read [`remedy-location.md`](remedy-location.md) in full and follow it, with the run's `path` and `targets` and the location's `order` and `kind`.
 Take each location's outcome, in the form that file's outcome report gives, through step 3 of `## The loop` as a `remedy` agent's reported outcome.
+The plugin prints no line for a location you work inline, so on every client, Claude Code included, write the location's one line, in step 3's form, as soon as the location's outcome is final and before you start the next location.
+After the round's last location, write the round-close line, in step 4's form, before the next round's `validate` call.
 
 ## Finish
 

@@ -192,6 +192,59 @@ class RemedyAgentTest(unittest.TestCase):
         for restated in ("old_string", "conformance.ok", "Apply every `edits`", "hoist", "remedy_brief"):
             self.assertNotIn(restated, apply)
 
+    def test_inline_path_writes_location_and_round_close_lines_on_every_client(self):
+        heal = HEAL_MD.read_text(encoding="utf-8")
+        inline = section(heal, "Inline path")
+        self.assertIn("every client, Claude Code included", inline)
+        self.assertIn("round-close line", inline)
+        self.assertIn("step 3", inline)
+        self.assertIn("step 4", inline)
+        self.assertNotIn("Round <kind> done", inline)
+        loop = section(heal, "The loop")
+        for line in loop.splitlines():
+            if "the plugin prints" in line:
+                self.assertIn("dispatched `remedy` sub-agent", line)
+        self.assertNotIn("Do not write them again on Claude Code.", loop)
+
+    def test_start_block_is_shown_before_heal_apply_is_called(self):
+        heal = HEAL_MD.read_text(encoding="utf-8")
+        start = section(heal, "Start block")
+        self.assertIn("before the `heal_apply` call", start)
+        self.assertIn("do not write the start block only in your thinking", start)
+        apply = section(heal, "Apply the no-judgment fixes")
+        self.assertIn("only after the start block is shown", apply)
+        self.assertEqual(heal.count("Round <kind> done"), 1)
+
+    def test_slot_change_follows_its_ops_line_in_place_of_op(self):
+        proc = PROC_MD.read_text(encoding="utf-8")
+        carries = section(proc, "What the plan carries")
+        self.assertIn("change", carries)
+        slots = section(proc, "Decide the slots")
+        self.assertIn("ops[<change", slots)
+        self.assertNotIn("repeat exactly that object", slots)
+        self.assertNotIn("split-repeat", slots)
+
+    def test_claude_code_carve_out_covers_only_dispatched_sub_agent_locations(self):
+        loop = section(HEAL_MD.read_text(encoding="utf-8"), "The loop")
+        step3 = next(l for l in loop.splitlines() if "the plugin prints" in l)
+        self.assertIn("dispatched", step3)
+        self.assertIn("sub-agent", step3)
+        self.assertNotIn("worked by a `remedy` agent", step3)
+        step4 = next(l for l in loop.splitlines() if l.startswith("4."))
+        self.assertIn("every location", step4)
+        self.assertIn("dispatched", step4)
+        self.assertRegex(loop, r"(?i)inline location[^\n]*round-close line[^\n]*whole round")
+
+    def test_start_block_ordering_rule_asks_nothing_of_the_host_project(self):
+        start = section(HEAL_MD.read_text(encoding="utf-8"), "Start block")
+        self.assertIn("before any other reply text or tool call that follows the initial `validate` reply", start)
+        self.assertNotIn("Answer anything else", start)
+        self.assertNotIn("host project asks", start)
+
+    def test_slot_change_line_wins_over_the_rule_pass_example(self):
+        slots = section(PROC_MD.read_text(encoding="utf-8"), "Decide the slots")
+        self.assertIn("the `change` line wins", slots)
+
 
 if __name__ == "__main__":
     unittest.main()

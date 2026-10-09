@@ -13,10 +13,10 @@ Call `remedy_brief(path, location, targets, has_guide=true)` once to fetch your 
 
 - `location.root` — the project's absolute root. Resolve any relative `file` name the plan gives you against it.
 - `edits` — `[{file, path, line_start, line_end, op, rule, before, after}]`, exact changes to apply verbatim, ordered bottom-to-top within each file.
-- `slots` — `[{file, path, line, pi, op, rule, text, bound}]`, the few lines that need a decision. `bound` is `line` (change only that line) or `section` (change only lines of that section).
+- `slots` — `[{file, path, line, pi, op, rule, text, bound}]`, the few lines that need a decision. `bound` is `line` (change only that line) or `section` (change only lines of that section). A slot may also carry `change`, the one change a split the plan refused allows: `split-keep-lead-in`, `split-repeat:<object>`, `split-series`, `split-keep-condition`, or `split-keep-sequence`.
 - A `hoist` slot also carries `to` (the absolute path of the file the line would move into) and `also` (`[path, line]`: the absolute path and line of the same line elsewhere).
 - `guides` — per rule id, a `title` with a `pass` and a `fail` example.
-- `ops` — per `op`, one plain instruction for how to change a slot.
+- `ops` — per `op` (and per `change` kind a slot carries), one plain instruction for how to change a slot.
 - `refused` — changes the plan declined to make, each with a `reason`. Leave those lines as they are.
 - `preservation_contract` — the fixed rule your result is measured against (below).
 
@@ -33,6 +33,7 @@ Apply every `edits` entry verbatim, in the order the plan gives them, with the E
 ## Decide the slots
 
 For each `slot`, change only what its `bound` allows: only the line at `line` when `bound` is `line`, only lines of that line's section when `bound` is `section`. Follow `ops[op]` for how to change it, and match the Pass example of `guides[rule]`. *Do not follow the Fail example of the rule.* *Never change any other line.*
+When a slot carries `change`, follow `ops[<change, without any ":<object>" part>]` for it in place of `ops[op]`; where that `change` line and the Pass example of `guides[rule]` differ, the `change` line wins.
 
 While you decide a slot:
 
