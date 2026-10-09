@@ -25,7 +25,7 @@ heal_event() {
 
 # heal_is_async_launch <input>: succeeds when a PostToolUse input only reports a background launch (no report yet).
 heal_is_async_launch() {
-  printf '%s' "$1" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"async_launched"'
+  printf '%s' "$1" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"async_launched"|"text"[[:space:]]*:[[:space:]]*"Async agent launched'
 }
 
 # heal_json_string <input> <anchor> <key>: the decoded JSON string that follows <key> (an ERE ending at the

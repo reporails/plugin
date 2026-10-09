@@ -85,6 +85,12 @@ def user_prompt(text, session=SESSION):
     }
 
 
+def rep(order, element, status, detail, scores="7.5 → 9.0", path="/p/a/SKILL.md", extra=""):
+    """A report in the shape remedy-location.md ships: header, one row per file, then the outcome line."""
+    row = f"{path} | {status} | {scores} | introduced 0 | edits 1 applied | slots 0 decided | validate calls 2"
+    return f"location {order} {element}\n{row}\n{extra}outcome: {order} | {element} | {status} | {detail}"
+
+
 class HealProgressTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -108,9 +114,9 @@ class HealProgressTest(unittest.TestCase):
 
     def test_three_agents_each_print_a_line_and_the_last_closes_the_round(self):
         reports = {
-            "t1": (1, "location 1 skill-a\n/p/a/SKILL.md | accepted | 7.5 → 9.0 | validate calls 2 | put back 0 | introduced 0 | open 0"),
-            "t2": (2, "Rewrote it.\nlocation 2 skill-b\n`/p/b/SKILL.md | restored | 8.0 → 8.0 | validate calls 4 | put back 1 | introduced 0 | open 1`\n- dangling_fragments: a sentence now dangles"),
-            "t3": (3, "location 3 skill-c\n/p/c/SKILL.md | refused | 6.0 → 6.0 | validate calls 0 | put back 0 | introduced 0 | open 0\nThe PreToolUse hook guard-config blocked the write: \"no edits\""),
+            "t1": (1, rep(1, "skill-a", "accepted", "score 7.5 → 9.0")),
+            "t2": (2, "Rewrote it.\n" + rep(2, "skill-b", "restored", "dangling_fragments: a sentence now dangles", scores="8.0 → 8.0", path="/p/b/SKILL.md", extra="Failed checks:\n- dangling_fragments: a sentence now dangles\n")),
+            "t3": (3, rep(3, "skill-c", "refused", 'The PreToolUse hook guard-config blocked the write: "no edits"', scores="6.0 → 6.0", path="/p/c/SKILL.md")),
         }
         for tid, (order, _) in reports.items():
             self.assertEqual(self.run_hook(pre(tid, order)), "")
@@ -125,8 +131,8 @@ class HealProgressTest(unittest.TestCase):
         self.assertIn('"no edits"', third[0])
         self.assertRegex(third[1], r"^Round skills done — 1 accepted, 1 restored, 1 refused, \d+\.\d min$")
 
-    REPORT_1 = "location 1 skill-a\n/p/a/SKILL.md | accepted | 7.5 → 9.0 | validate calls 2 | put back 0 | introduced 0 | open 0"
-    REPORT_2 = "location 2 skill-b\n`/p/b/SKILL.md | restored | 8.0 → 8.0 | validate calls 4 | put back 1 | introduced 0 | open 1`\n- dangling_fragments: a sentence now dangles"
+    REPORT_1 = rep(1, "skill-a", "accepted", "score 7.5 → 9.0")
+    REPORT_2 = rep(2, "skill-b", "restored", "dangling_fragments: a sentence now dangles", scores="8.0 → 8.0", path="/p/b/SKILL.md")
 
     def background_round(self):
         for tid, order in (("b1", 1), ("b2", 2)):
@@ -172,9 +178,10 @@ class HealProgressTest(unittest.TestCase):
         self.assertEqual(self.run_hook(user_prompt("please continue with the heal")), "")
         self.assertEqual(self.run_hook(user_prompt("")), "")
 
-    def test_a_notification_without_a_readable_report_prints_nothing(self):
+    def test_a_notification_without_an_outcome_line_is_refused(self):
         self.background_round()
-        self.assertEqual(self.run_hook(user_prompt(notification("b1", "Agent stopped before reporting."))), "")
+        out = self.message(user_prompt(notification("b1", "Agent stopped before reporting.")))
+        self.assertEqual(out, "1 skills — refused (no outcome line)")
 
     def test_compact_json_notifications_are_read(self):
         self.background_round()
@@ -190,7 +197,7 @@ class HealProgressTest(unittest.TestCase):
 
     def test_non_remedy_agent_prints_nothing(self):
         self.assertEqual(self.run_hook(pre("x1", 1, agent="general-purpose")), "")
-        report = "location 1 e\n/p/f.md | accepted | 7.0 → 9.0 | validate calls 1 | put back 0 | introduced 0 | open 0"
+        report = rep(1, "e", "accepted", "score 7.0 → 9.0")
         self.assertEqual(self.run_hook(post("x1", 1, report, agent="general-purpose")), "")
 
     def test_async_launch_prints_nothing_and_keeps_the_round_open(self):
@@ -198,51 +205,144 @@ class HealProgressTest(unittest.TestCase):
         self.run_hook(pre("a2", 2))
         async_text = "Async agent launched successfully.\nagentId: abc"
         self.assertEqual(self.run_hook(post("a1", 1, async_text)), "")
-        report = "location 2 s2\n/p/s2.md | accepted | 7.0 → 9.0 | validate calls 1 | put back 0 | introduced 0 | open 0"
+        report = rep(2, "s2", "accepted", "score 7.0 → 9.0")
         # a1 is still pending, so the second hand-back must not close the round
         self.assertEqual(self.message(post("a2", 2, report)), "2 s2 — accepted (score 7.0 → 9.0)")
 
-    def test_several_files_aggregate(self):
+    def test_the_outcome_line_alone_decides_the_location_line(self):
         self.run_hook(pre("m1", 4, kind="agents"))
         self.run_hook(pre("m2", 5, kind="agents"))
         self.run_hook(pre("m3", 6, kind="agents"))
         rows = (
-            "location 4 multi\n"
-            "/p/a.md | accepted | 7.0 → 9.0 | validate calls 1 | put back 0 | introduced 0 | open 0\n"
-            "/p/b.md | accepted | 6.0 → 8.5 | validate calls 1 | put back 0 | introduced 0 | open 0"
+            "location 4 multi\n/p/a.md | accepted | 7.0 → 9.0 | introduced 0\n/p/b.md | accepted | 6.0 → 8.5 | introduced 0\n"
+            "outcome: 4 | multi | accepted | score 7.0 → 9.0, 6.0 → 8.5"
         )
         self.assertEqual(self.message(post("m1", 4, rows, kind="agents")), "4 multi — accepted (score 7.0 → 9.0, 6.0 → 8.5)")
-        mixed = (
-            "location 5 mixed\n"
-            "/p/a.md | accepted | 7.0 → 9.0 | validate calls 1 | put back 0 | introduced 0 | open 0\n"
-            "/p/b.md | restored | 6.0 → 6.0 | validate calls 4 | put back 1 | introduced 0 | open 1\nlost_instructions\n"
-            "/p/c.md | refused | 6.0 → 6.0 | validate calls 0 | put back 0 | introduced 0 | open 0\nhook h blocked the write"
-        )
-        self.assertEqual(self.message(post("m2", 5, mixed, kind="agents")), "5 mixed — refused (hook h blocked the write)")
-        restored = (
-            "location 6 rest\n"
-            "/p/a.md | accepted | 7.0 → 9.0 | validate calls 1 | put back 0 | introduced 0 | open 0\n"
-            "/p/b.md | restored | 6.0 → 6.0 | validate calls 4 | put back 1 | introduced 0 | open 1\nlost_instructions, narrowed_instructions"
-        )
+        mixed = "location 5 mixed\n/p/b.md | restored | 6.0 → 6.0\nlost_instructions\noutcome: 5 | mixed | refused | hook h blocked the write | twice"
+        self.assertEqual(self.message(post("m2", 5, mixed, kind="agents")), "5 mixed — refused (hook h blocked the write | twice)")
+        restored = "outcome: 6 | rest | restored | lost_instructions, narrowed_instructions"
         last = self.message(post("m3", 6, restored, kind="agents")).split("\n")
         self.assertEqual(last[0], "6 rest — restored (lost_instructions, narrowed_instructions)")
         self.assertRegex(last[1], r"^Round agents done — 1 accepted, 1 restored, 1 refused, \d+\.\d min$")
+        self.assertEqual(sum("Round" in l for l in last), 1)
+
+    def test_an_error_outcome_closes_the_round(self):
+        self.run_hook(pre("e1", 1))
+        self.run_hook(pre("e2", 2))
+        ok = self.message(post("e1", 1, rep(1, "skill-a", "accepted", "score 7.5 → 9.0")))
+        self.assertEqual(ok, "1 skill-a — accepted (score 7.5 → 9.0)")
+        failed = "outcome: 2 | skill-b | refused | brief_unavailable: the plan could not be fetched"
+        lines = self.message(post("e2", 2, failed)).split("\n")
+        self.assertEqual(lines[0], "2 skill-b — refused (brief_unavailable: the plan could not be fetched)")
+        self.assertRegex(lines[1], r"^Round skills done — 1 accepted, 0 restored, 1 refused, \d+\.\d min$")
+
+    def test_a_hand_back_without_an_outcome_line_is_refused_and_the_round_closes(self):
+        self.run_hook(pre("n1", 1))
+        self.run_hook(pre("n2", 2))
+        self.run_hook(post("n1", 1, rep(1, "skill-a", "accepted", "score 7.5 → 9.0")))
+        for report in ("Agent stopped before reporting.", "location 2 skill-b\n/p/b.md | accepted | 7.0 → 9.0 | introduced 0"):
+            self.run_hook(pre("n2", 2))
+            lines = self.message(post("n2", 2, report)).split("\n")
+            self.assertEqual(lines[0], "2 skills — refused (no outcome line)")
+            self.assertIn("Round skills done", lines[1])
+            self.run_hook(pre("n1", 1))
+            self.run_hook(post("n1", 1, rep(1, "skill-a", "accepted", "score 7.5 → 9.0")))
+
+    def test_a_location_header_never_names_the_element(self):
+        self.run_hook(pre("h1", 3))
+        report = "**location 3 skill-c**\n/p/c.md | accepted | 7.0 → 9.0 | introduced 0\noutcome: 3 | skill-c | accepted | score 7.0 → 9.0"
+        self.assertTrue(self.message(post("h1", 3, report)).startswith("3 skill-c — accepted (score 7.0 → 9.0)"))
+        self.run_hook(pre("h2", 4))
+        report = "Location 4 skill-d\n/p/d.md | accepted | 7.0 → 9.0\noutcome: 4 | skill-d | accepted | score 7.0 → 9.0"
+        self.assertTrue(self.message(post("h2", 4, report)).startswith("4 skill-d — accepted (score 7.0 → 9.0)"))
+
+    def test_an_outcome_line_wrapped_in_emphasis_or_quote_is_read(self):
+        wrapped = [
+            "**outcome: 3 | skill-c | accepted | score 7.1 → 8.0**",
+            "_outcome: 3 | skill-c | accepted | score 7.1 → 8.0_",
+            "> outcome: 3 | skill-c | accepted | score 7.1 → 8.0",
+            "> - ***outcome: 3 | skill-c | accepted | score 7.1 → 8.0***",
+        ]
+        for i, line in enumerate(wrapped):
+            self.run_hook(pre(f"w{i}", 3))
+            out = self.message(post(f"w{i}", 3, "location 3 skill-c\n/p/c.md | accepted | 7.1 → 8.0\n" + line)).split("\n")
+            self.assertEqual(out[0], "3 skill-c — accepted (score 7.1 → 8.0)", line)
+
+    def test_outcome_label_is_matched_in_any_case_and_inside_a_table_row(self):
+        wrapped = [
+            "Outcome: 3 | skill-c | accepted | score 7.1 → 8.0",
+            "**Outcome:** 3 | skill-c | accepted | score 7.1 → 8.0",
+            "| outcome: 3 | skill-c | accepted | score 7.1 → 8.0 |",
+            "| **Outcome:** 3 | skill-c | accepted | score 7.1 → 8.0 |",
+        ]
+        for i, line in enumerate(wrapped):
+            self.run_hook(pre(f"o{i}", 3))
+            out = self.message(post(f"o{i}", 3, "location 3 skill-c\n" + line)).split("\n")
+            self.assertEqual(out[0], "3 skill-c — accepted (score 7.1 → 8.0)", line)
+
+    def test_a_stale_pending_row_of_the_same_order_does_not_block_the_next_round(self):
+        self.run_hook(pre("lost", 1))  # refused or interrupted: its hand-back never fires
+        self.run_hook(pre("n1", 1))
+        self.run_hook(pre("n2", 2))
+        self.message(post("n1", 1, rep(1, "skill-a", "accepted", "score 7.5 → 9.0")))
+        out = self.message(post("n2", 2, rep(2, "skill-b", "accepted", "score 7.5 → 9.0"))).split("\n")
+        self.assertRegex(out[1], r"^Round skills done — 2 accepted, 0 restored, 0 refused, ")
+
+    def test_a_long_detail_is_cut_between_words_never_inside_a_character(self):
+        detail = "score " + ", ".join(f"7.{i % 10} → 9.{i % 10}" for i in range(20))
+        self.run_hook(pre("long", 1))
+        line = self.message(post("long", 1, rep(1, "skill-a", "accepted", detail))).split("\n")[0]
+        self.assertNotIn("\ufffd", line)
+        self.assertTrue(line.endswith("…)"), line)
+        self.assertLessEqual(len(line.encode("utf-8")), 260)
+        self.assertTrue(detail.startswith(line.split("(", 1)[1][:-2].rstrip("…").rstrip(", ")))
+
+    def test_a_lead_in_line_never_enters_the_detail(self):
+        self.run_hook(pre("l1", 2))
+        report = (
+            "location 2 skill-b\n/p/b.md | restored | 8.0 → 8.0 | introduced 0\nFailed checks:\n- dangling_fragments\n"
+            "outcome: 2 | skill-b | restored | dangling_fragments"
+        )
+        self.assertTrue(self.message(post("l1", 2, report)).startswith("2 skill-b — restored (dangling_fragments)"))
+
+    def test_the_eleventh_dispatch_held_back_does_not_split_the_round(self):
+        # The client holds the 11th dispatch back until one agent finishes, about 90 s after the first ten.
+        def done(i):
+            return post(f"d{i}", i, rep(i, f"skill-{i}", "accepted", "score 7.5 → 9.0"))
+        for i in range(1, 11):
+            self.run_hook(pre(f"d{i}", i))
+        self.assertNotIn("Round", self.message(done(1)))
+        batch = Path(self.tmp.name) / f"reporails-heal-{SESSION}" / "batch"
+        old = int(time.time()) - 90
+        rows = [l.split("\t") for l in batch.read_text().splitlines()]
+        batch.write_text("".join("\t".join([r[0], r[1], r[2], str(old), r[4]]) + "\n" for r in rows))
+        self.run_hook(pre("d11", 11))
+        messages = [self.message(done(i)) for i in (2, 3, 4, 5, 6, 7, 8, 9, 11, 10)]
+        self.assertEqual([m for m in messages if "Round" in m][0].count("Round"), 1)
+        self.assertEqual(sum("Round" in m for m in messages), 1, messages)
+        self.assertRegex(messages[-1].split("\n")[1], r"^Round skills done — 11 accepted, 0 restored, 0 refused, ")
+
+    def test_a_dispatch_of_another_kind_drops_the_rows_of_an_earlier_round(self):
+        self.run_hook(pre("old", 1, kind="skills"))
+        self.run_hook(pre("new", 1, kind="agents"))
+        out = self.message(post("new", 1, rep(1, "agent-a", "accepted", "score 7.5 → 9.0"), kind="agents")).split("\n")
+        self.assertTrue(out[1].startswith("Round agents done — 1 accepted"), out)
 
     def test_missing_location_line_falls_back_to_the_kind(self):
         self.run_hook(pre("k1", 9, kind="rules"))
-        report = "/p/r.md | accepted | 7.0 → 9.0 | validate calls 1 | put back 0 | introduced 0 | open 0"
+        report = "outcome: 9 | | accepted | score 7.0 → 9.0"
         out = self.message(post("k1", 9, report, kind="rules")).split("\n")
         self.assertEqual(out[0], "9 rules — accepted (score 7.0 → 9.0)")
 
     def test_a_new_round_starts_after_the_previous_one_closed(self):
-        report = "location 1 e\n/p/f.md | accepted | 7.0 → 9.0 | validate calls 1 | put back 0 | introduced 0 | open 0"
+        report = rep(1, "e", "accepted", "score 7.0 → 9.0")
         for kind in ("skills", "agents"):
             self.run_hook(pre("r-" + kind, 1, kind=kind))
             out = self.message(post("r-" + kind, 1, report, kind=kind), compact=True).split("\n")
             self.assertTrue(out[1].startswith(f"Round {kind} done — 1 accepted, 0 restored, 0 refused"), out)
 
     def test_a_round_across_kinds_names_every_kind_in_dispatch_order(self):
-        report = "location 1 e\n/p/f.md | accepted | 7.0 → 9.0 | validate calls 1 | put back 0 | introduced 0 | open 0"
+        report = rep(1, "e", "accepted", "score 7.0 → 9.0")
         self.run_hook(pre("c1", 1, kind="skills"))
         self.run_hook(pre("c2", 2, kind="agents"))
         self.run_hook(pre("c3", 3, kind="skills"))
@@ -252,7 +352,7 @@ class HealProgressTest(unittest.TestCase):
         self.assertTrue(out[1].startswith("Round skills, agents done — 3 accepted"), out)
 
     def test_parallel_hand_backs_close_the_round_exactly_once(self):
-        report = "location 1 e\n/p/f.md | accepted | 7.0 → 9.0 | validate calls 1 | put back 0 | introduced 0 | open 0"
+        report = rep(1, "e", "accepted", "score 7.0 → 9.0")
         ids = [f"p{i}" for i in range(8)]
         for i, tid in enumerate(ids):
             self.run_hook(pre(tid, i + 1))
@@ -274,7 +374,7 @@ class HealProgressTest(unittest.TestCase):
             self.assertEqual((done.returncode, done.stdout, done.stderr), (0, "", ""))
 
 
-ROW = "/p/f.md | accepted | 7.0 → 9.0 | validate calls 1 | put back 0 | introduced 0 | open 0"
+ROW = "/p/f.md | accepted | 7.0 → 9.0 | introduced 0 | edits 1 applied | slots 0 decided | validate calls 1\noutcome: 1 | e | accepted | score 7.0 → 9.0"
 SHELLS = ["sh"] + (["dash"] if shutil.which("dash") else [])
 
 
@@ -306,27 +406,27 @@ class HealProgressRobustnessTest(unittest.TestCase):
             self.assertEqual((done.returncode, done.stdout), (0, ""))
         first = self.run_script(post("b1", 1, "location 1 e\n" + ROW), path=path).stdout
         self.assertNotIn("Round", first, "the first hand-back closed the round: Pre was read as Post")
-        self.assertIn("Round", self.run_script(post("b2", 2, "location 2 e\n" + ROW), path=path).stdout)
+        self.assertIn("Round", self.run_script(post("b2", 2, "location 2 e\n" + ROW.replace("outcome: 1","outcome: 2")), path=path).stdout)
 
-    def test_markdown_table_row_with_leading_pipe_is_read(self):
+    def test_outcome_line_in_a_list_item_or_backticks_is_read(self):
         self.run_script(pre("t1", 1))
-        report = "location 1 tbl\n| `/p/f.md` | accepted | 7.0 → 9.0 | validate calls 1 | put back 0 | introduced 0 | open 0 |"
+        report = "location 1 tbl\n- `outcome: 1 | tbl | accepted | score 7.0 → 9.0`"
         out = json.loads(self.run_script(post("t1", 1, report)).stdout)["systemMessage"]
         self.assertTrue(out.startswith("1 tbl — accepted (score 7.0 → 9.0)"), out)
 
     def test_a_dispatch_that_never_returned_does_not_block_a_later_round(self):
         self.run_script(pre("lost", 1))
         batch = self.state / "batch"
-        old = int(time.time()) - 120
+        old = int(time.time()) - 3600
         lines = [l.split("\t") for l in batch.read_text().splitlines()]
         batch.write_text("".join("\t".join([l[0], l[1], l[2], str(old), l[4]]) + "\n" for l in lines))
         self.run_script(pre("next", 1))
         out = json.loads(self.run_script(post("next", 1, "location 1 e\n" + ROW)).stdout)["systemMessage"]
         self.assertRegex(out.split("\n")[1], r"^Round skills done — 1 accepted, 0 restored, 0 refused, ")
 
-    def test_restored_reason_is_the_agents_own_text(self):
+    def test_restored_detail_is_the_agents_own_text(self):
         self.run_script(pre("r1", 1))
-        report = "location 1 e\n/p/f.md | restored | 8.0 → 8.0 | validate calls 4 | put back 1 | introduced 0 | open 1\n  brand_new_check failed, lost_instructions too  "
+        report = "outcome: 1 | e | restored | brand_new_check failed, lost_instructions too  "
         out = json.loads(self.run_script(post("r1", 1, report)).stdout)["systemMessage"]
         self.assertTrue(out.startswith("1 e — restored (brand_new_check failed, lost_instructions too)"), out)
 

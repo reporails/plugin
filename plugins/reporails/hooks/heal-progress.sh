@@ -62,9 +62,11 @@ printf '%s' "$$" > "$lock/pid"
 now=$(date +%s)
 
 if [ "$event" = Pre ]; then
-  # Entries from well before this dispatch burst belong to an earlier round that will not close.
+  # Rows of another kind, far older than any round, or for this same order belong to an earlier round
+  # that will not close (an order is dispatched once per round). The incoming kind's other pending rows
+  # stay: a client may hold back a dispatch for minutes.
   if [ -f "$batch" ]; then
-    awk -F '\t' -v cutoff="$((now - 60))" '$4 >= cutoff' "$batch" > "$batch.new" && mv "$batch.new" "$batch"
+    awk -F '\t' -v cutoff="$((now - 900))" -v kind="$kind" -v order="$order" '$3 == kind && $4 >= cutoff && $2 != order' "$batch" > "$batch.new" && mv "$batch.new" "$batch"
   fi
   printf '%s\t%s\t%s\t%s\tpending\n' "$id" "$order" "$kind" "$now" >> "$batch"
   exit 0
@@ -74,53 +76,44 @@ fi
 # appends its location line to $out, and, when no dispatch of the batch is still pending, the round-close line.
 heal_record() {
   _id=$1 _order=$2 _kind=$3
+  # The only line read is the report's `outcome: <order> | <element> | <accepted, restored or refused> | <detail>`.
+  # A hand-back without a valid one is recorded as refused, so the round always closes.
   parsed=$(printf '%s\n' "$4" | awk '
-  function clean(l) {
-    gsub(/`/, "", l)
-    sub(/^[ \t]*([-*•|][ \t]*)?/, "", l)
-    sub(/[ \t|]+$/, "", l)
-    return l
-  }
   {
-    l = clean($0)
-    if (match(l, /^location[ \t]+[0-9]+[ \t]+/)) { element = substr(l, RSTART + RLENGTH); next }
-    if (l ~ /^[^|]+\|[ \t]*(accepted|restored|refused)[ \t]*\|/) {
-      rows++
-      split(l, f, /[ \t]*\|[ \t]*/)
-      status[rows] = f[2]; score[rows] = f[3]; tail[rows] = ""
-      next
-    }
-    if (rows > 0 && l != "") {
-      if (tail[rows] == "") tail[rows] = l
+    l = $0
+    gsub(/`/, "", l)
+    sub(/^[ \t>*•_|-]+/, "", l)
+    if (tolower(substr(l, 1, 8)) == "outcome:") {
+      l = substr(l, 9)
+      sub(/^[ \t*_]+/, "", l)
+      sub(/[ \t|*_]+$/, "", l)
+      line = l
     }
   }
   END {
-    if (rows == 0) exit
-    first_refused = first_restored = 0
-    for (r = 1; r <= rows; r++) {
-      if (status[r] == "refused" && !first_refused) first_refused = r
-      if (status[r] == "restored" && !first_restored) first_restored = r
+    if (line == "") exit
+    n = split(line, f, /[ \t]*\|[ \t]*/)
+    if (f[3] !~ /^(accepted|restored|refused)$/) exit
+    d = f[4]
+    for (i = 5; i <= n; i++) d = d " | " f[i]
+    if (length(d) > 200) {
+      # Cut at a space (never inside a multi-byte character, whatever the awk counts in).
+      for (c = 200; c > 1 && substr(d, c, 1) != " "; c--) ;
+      if (c <= 1) c = 200
+      d = substr(d, 1, c - 1)
+      sub(/[ \t,]+$/, "", d)
+      d = d "…"
     }
-    if (first_refused) {
-      st = "refused"; d = tail[first_refused]
-      sub(/^[Rr]eason:[ \t]*/, "", d)
-      if (length(d) > 200) d = substr(d, 1, 200)
-      if (d == "") d = "no reason given"
-    } else if (first_restored) {
-      st = "restored"; d = tail[first_restored]
-      if (length(d) > 200) d = substr(d, 1, 200)
-      if (d == "") d = "score " score[first_restored]
-    } else {
-      st = "accepted"; d = ""
-      for (r = 1; r <= rows; r++) d = (d == "" ? score[r] : d ", " score[r])
-      d = "score " d
-    }
-    print element; print st; print d
+    print f[2]; print f[3]; print d
   }')
-  [ -n "$parsed" ] || return 0
-  element=$(printf '%s\n' "$parsed" | sed -n 1p)
-  status=$(printf '%s\n' "$parsed" | sed -n 2p)
-  detail=$(printf '%s\n' "$parsed" | sed -n 3p)
+  if [ -n "$parsed" ]; then
+    element=$(printf '%s\n' "$parsed" | sed -n 1p)
+    status=$(printf '%s\n' "$parsed" | sed -n 2p)
+    detail=$(printf '%s\n' "$parsed" | sed -n 3p)
+    [ -n "$detail" ] || detail="no detail given"
+  else
+    element="" status=refused detail="no outcome line"
+  fi
   [ -n "$element" ] || element="$_kind"
 
   # Record the result; a hand-back with no recorded dispatch counts as its own one-location batch.

@@ -5,7 +5,7 @@ Work a location with a `remedy` agent where the client supports sub-agents, or y
 Confirm each location's result conformed to its plan and kept everything before accepting it.
 This loop is MCP-only and needs a paid account.
 `$ARGUMENTS` is `[path] [targets…]`, as "`check` / `heal` arguments" in `SKILL.md` defines.
-Carry whatever `targets` you parsed on every run-level `validate` call this workflow makes (the initial call, the call before each round, and the final call), and on every `remedy_brief` call. The per-file `validate(path=<file>)` check inside a location's procedure is the one call that carries no `targets`.
+Carry whatever `targets` you parsed on every run-level `validate` call this workflow makes (the initial call, the call before each round, and the final call), on the `heal_apply` call, and on every `remedy_brief` call. The per-file `validate(path=<file>)` check inside a location's procedure is the one call that carries no `targets`.
 *Never call `validate` with `targets` the user did not give.*
 A Pro `validate` reply arrives as a text view.
 Read each of its fields by the key path its line starts with (`workflow.summary`, `workflow.locations`, `workflow.listed`, `host_hooks`, `conformance.ok`, `preservation.ok`, `feedback`, `funnel.retryable`).
@@ -47,7 +47,7 @@ Show the start block before any other reply text or tool call that follows the i
 It is information, not a question, so a user who approved every fix still gets it.
 
 1. The scope: the rounds in order, each with its `kind` and the locations it holds (each one's `element`).
-2. The places skipped, with the reason: the `workflow.listed` groups whose `reason` is `excluded` (a path in the user's `heal_exclude` config, still checked, never changed), `at-ceiling` (already at score 10), and `leave-it` (the findings' brief says to leave the line as it stands). Add each location this run gave up on, by its `element`. Send no `remedy` agent to a skipped location.
+2. The places skipped, with the reason: the `workflow.listed` groups by their `code` (each group's `code:` line comes before its `reason:` sentence): `excluded` (a path in the user's `heal_exclude` config, still checked, never changed), `at-ceiling` (already at score 10), and `leave-it` (the findings' brief says to leave the line as it stands). Add each location this run gave up on, by its `element`. Send no `remedy` agent to a skipped location.
 3. A time range: about 4–9 min per round × the number of rounds.
 4. Each `host_hooks` entry that can intercept the edits: its agent, event, matcher, and file. Tell the user how to let the `remedy` agent through that hook.
    - Where the entry's `identity` names fields, tell the user to match them in that hook, for example `agent_type` equal to `reporails:remedy`.
@@ -65,7 +65,7 @@ Show the reply's first line to the user verbatim, in the form `heal_apply: <n> f
 Keep its `<n>` and `<k>` for `## Finish`.
 
 - A reply that wrote nothing because the account is not Pro (free, signed out or offline) → stop exactly as the non-Pro `validate` branch in `## Initial `validate` call` does, with the reason the reply gives.
-- Otherwise call `validate(path, targets)` again and branch on the new reply as the initial `validate` call's branches do, so the rounds work from what is left.
+- Otherwise call `validate(path, targets)` again and branch on the new reply as the initial `validate` call's branches do, so the rounds work from what is left. The exception is a paid reply whose `workflow.locations` is empty: the fixes finished the run, so go to `## Finish` instead of stopping.
   A location absent from the new `workflow.locations`, or whose row shows `finding_count` 0, has nothing left to decide and is not dispatched.
   The rounds below use only this reply's index and its `order`s.
 
@@ -93,8 +93,9 @@ The index order IS the round order: a round is a consecutive run of locations sh
    Two different refusals can happen here, and only one of them stops the run:
    - A refused dispatch — the client's own permission or safety check will not start the `remedy` agent at all — stops the run: tell the user which location was refused, and that heal edits instruction files, so it runs in a permission mode where the user approves or accepts file edits — in Claude Code, accept-edits mode rather than auto mode. *Do not work a refused-dispatch location in this session instead.*
    - A refused write — the agent starts, but the client's own guard denies one of its file edits (for example, a self-modification guard refusing an edit to an agent definition file) — does not stop the run. The `remedy` agent reports that location `refused`; log it. Then move on to the rest of this round's `remedy` agents. *The rest of this round still dispatches, and later rounds still run.*
-3. Collect the outcome each `remedy` agent reports, which is only a compact outcome — per file, its path and `accepted` (with its score before → after, its `introduced` count, up to 3 before → after pairs, and any `left:` lines), `restored` with the failed check(s), or `refused` with the reason the client's guard gave — never the brief or a file's contents.
+3. Collect the outcome each `remedy` agent reports (the report's last line is its `outcome:` line), which is only a compact outcome — per file, its path and `accepted` (with its score before → after, its `introduced` count, up to 3 before → after pairs, and any `left:` lines), `restored` with the failed check(s), or `refused` with the reason the client's guard gave — never the brief or a file's contents.
    Take each `remedy` agent's reported outcome as given.
+   A location's status is the status on its `outcome:` line, everywhere it is used: the line you show the user, the restore and refusal logs, the given-up locations, and `## Finish`. Read the per-file rows only for per-file details (scores, `introduced`, before → after pairs, `left:` lines).
    On Claude Code, the plugin prints the line of each location a dispatched `remedy` sub-agent worked (a dispatch through the client's sub-agent tool) itself as each sub-agent returns, whether the client ran it in the foreground or the background. *Do not write that line again on Claude Code for such a location.*
    On every other client, after each `remedy` agent's hand-back, write one line in this form: `<order> <element> — accepted (score a → b) | restored (<failed check>) | refused (<reason>)`. Name the hook in the `refused` reason when a hook refused the write.
    Write that line in a reply as soon as the agent's outcome arrives, before your next tool call.
@@ -132,20 +133,20 @@ Each of these lines is reply text the user sees, written before your next tool c
 
 ## Finish
 
-Call `validate(path, targets)` once more after the last pass.
+Call `validate(path, targets)` once more after the last pass. When you came here from an empty `workflow.locations` in the reply after `heal_apply`, that reply is the closing reply: do not call `validate` again.
 Report, in this order:
 
 1. The compression line, before → now, from the `compression:` line of the first and the last reply.
 2. "What your agent now reads differently": up to 5 before → after pairs, taken from the pairs the agents reported under their `accepted` rows.
 3. The total `introduced` count, summed from the `introduced <n>` of the accepted files' rows.
 4. "Left for you": one line per `left:` line the agents reported, as they gave it. A `hoist` slot appears here as `move <file>:<line> into <to>; the same line is in <also path>`.
-5. "Left alone on purpose": group `workflow.listed` by its `reason`. Give each group one line per rule — its title with its ID as a link, `Title ([CORE:E:0004](url))`, and its count — then the group's `reason` once, after its rules.
+5. "Left alone on purpose": group `workflow.listed` by its `code`. Give each group one line per rule — its title with its ID as a link, `Title ([CORE:E:0004](url))`, and its count — then the group's `reason` sentence once, after its rules.
 6. The locations still open, each with the reason.
 7. Last, and secondary: the project score and the finding count, before → now.
 8. The fixes made before the rounds: `<n> fixed` and `<k> put back`, as the `heal_apply:` line reported them. Give no count that line did not.
 
 Write the same receipt as Markdown to `.ails/reports/heal-<YYYY-MM-DD-HHMM>.md` under the project `path`, with `<YYYY-MM-DD-HHMM>` as the local date and 24-hour time.
-Add an appendix to that report file with one entry per location: its `element`, outcome, files' score before → after, `introduced` count, and `validate calls`, all as the agents reported them.
+Add an appendix to that report file with one entry per location: its `element`, status (from its `outcome:` line), files' score before → after, `introduced` count, and `validate calls`, all as the agents reported them.
 Add the failed check to the entry of a `restored` location, and the refusal reason to the entry of a `refused` location.
 *Do not put the appendix in the reply: write it only to the `.ails/reports/heal-<YYYY-MM-DD-HHMM>.md` file.*
 Name the `.ails/reports/heal-<YYYY-MM-DD-HHMM>.md` file in the reply.

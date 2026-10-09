@@ -5,7 +5,7 @@ license: BUSL-1.1
 compatibility: "Requires `uv`: the plugin starts the reporails-cli engine with it. The `setup` subcommand walks through installing both."
 metadata:
   author: reporails
-  version: "0.6.0"
+  version: "0.6.2"
   homepage: https://reporails.com
 ---
 
@@ -61,4 +61,4 @@ Read every other word in `$ARGUMENTS` as a target:
 No targets given checks or heals the whole project.
 Examples: `heal skills` (every skill), `heal skills:backlog` (one skill), `heal agents` (every agent).
 Pass whatever `targets` you parsed through unchanged to the workflow.
-The workflow threads them into every `validate` and `remedy_brief` call it makes.
+The workflow carries them as [`workflows/heal.md`](workflows/heal.md) directs.

@@ -3,6 +3,7 @@
 Run: python3 -m unittest discover plugins/reporails/tests
 Set REMEDY_MD to test another copy of agents/remedy.md.
 """
+import json
 import os
 import re
 import unittest
@@ -51,6 +52,11 @@ class RemedyAgentTest(unittest.TestCase):
         text = REMEDY_MD.read_text(encoding="utf-8")
         self.assertIn("mcp__plugin_reporails_reporails__explain", frontmatter_disallowed_tools(text))
         self.assertIn("Do not call `explain`", PROC_MD.read_text(encoding="utf-8"))
+
+    def test_heal_apply_is_denied_to_the_remedy_agent(self):
+        disallowed = frontmatter_disallowed_tools(REMEDY_MD.read_text(encoding="utf-8"))
+        self.assertIn("mcp__plugin_reporails_reporails__heal_apply", disallowed)
+        self.assertIn("Do not call `heal_apply`", PROC_MD.read_text(encoding="utf-8"))
 
     def test_every_remedy_brief_call_carries_has_guide(self):
         for path in (REMEDY_MD, HEAL_MD, PROC_MD):
@@ -250,6 +256,65 @@ class RemedyAgentTest(unittest.TestCase):
         self.assertIn("reply text the user sees", inline)
         self.assertIn("before your next tool call", inline)
         self.assertIn("Do not write them only in your thinking", inline)
+
+    def test_every_report_ends_with_one_outcome_line_for_every_outcome(self):
+        proc = PROC_MD.read_text(encoding="utf-8")
+        report = section(proc, "Outcome report")
+        self.assertIn("`outcome: <order> | <element> | <accepted, restored or refused> | <detail>`", report)
+        self.assertIn("last line", report)
+        plan = section(proc, "Plan retrieval")
+        self.assertIn("outcome line", plan)
+        self.assertIn("refused", plan)
+        agent = REMEDY_MD.read_text(encoding="utf-8")
+        self.assertIn("outcome: <order> | <kind> | refused |", agent)
+
+    def test_host_instructions_are_described_in_user_terms(self):
+        for path in (PROC_MD, HEAL_MD, SKILL_MD, REMEDY_MD):
+            text = path.read_text(encoding="utf-8").lower()
+            for gone in ("doctrine", "reply-format", "reply format"):
+                self.assertNotIn(gone, text, f"{path.name}: {gone}")
+        host = section(PROC_MD.read_text(encoding="utf-8"), "Host instructions")
+        self.assertIn("whatever the project asks of replies", host)
+
+    def test_a_heal_that_heal_apply_finishes_goes_to_finish(self):
+        apply = section(HEAL_MD.read_text(encoding="utf-8"), "Apply the no-judgment fixes")
+        self.assertIn("go to `## Finish`", apply)
+        self.assertIn("do not call `validate` again", section(HEAL_MD.read_text(encoding="utf-8"), "Finish"))
+        self.assertIn("empty", apply)
+
+    def test_start_block_reads_the_skipped_groups_by_code(self):
+        start = section(HEAL_MD.read_text(encoding="utf-8"), "Start block")
+        for token in ("`code`", "`excluded`", "`at-ceiling`", "`leave-it`"):
+            self.assertIn(token, start)
+        self.assertNotIn("whose `reason` is", start)
+        self.assertIn("`reason` sentence", section(HEAL_MD.read_text(encoding="utf-8"), "Finish"))
+
+    def test_skill_md_says_the_per_file_check_carries_no_targets(self):
+        skill = SKILL_MD.read_text(encoding="utf-8")
+        self.assertNotIn("into every `validate` and `remedy_brief` call", skill)
+        self.assertIn("workflows/heal.md", skill)
+        self.assertNotIn("remedy_brief", skill.split("`$ARGUMENTS` after")[1])
+
+    def test_skill_version_matches_every_manifest(self):
+        plugin = REMEDY_MD.parents[1]
+        versions = {json.loads(p.read_text(encoding="utf-8"))["version"] for p in (
+            plugin / "plugin.json", plugin / ".claude-plugin" / "plugin.json", plugin / ".codex-plugin" / "plugin.json")}
+        self.assertEqual(len(versions), 1, versions)
+        m = re.search(r'^\s+version: "([^"]+)"', SKILL_MD.read_text(encoding="utf-8"), re.M)
+        self.assertIsNotNone(m)
+        self.assertEqual({m.group(1)}, versions)
+
+    def test_the_outcome_line_status_is_the_locations_status_everywhere(self):
+        heal = HEAL_MD.read_text(encoding="utf-8")
+        loop = section(heal, "The loop")
+        self.assertIn("status on its `outcome:` line", loop)
+        self.assertIn("per-file details", loop)
+        self.assertIn("`outcome:` line", section(heal, "Finish"))
+
+    def test_the_targets_rule_lives_in_heal_md_and_names_heal_apply(self):
+        carry = HEAL_MD.read_text(encoding="utf-8").splitlines()[7]
+        for token in ("`heal_apply`", "`remedy_brief`", "run-level `validate`"):
+            self.assertIn(token, carry)
 
 
 if __name__ == "__main__":
