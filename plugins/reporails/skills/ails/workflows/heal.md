@@ -128,6 +128,7 @@ For each location, with yourself as the `remedy` agent, read [`remedy-location.m
 Take each location's outcome, in the form that file's outcome report gives, through step 3 of `## The loop` as a `remedy` agent's reported outcome.
 The plugin prints no line for a location you work inline, so on every client, Claude Code included, write the location's one line, in step 3's form, as soon as the location's outcome is final and before you start the next location.
 After the round's last location, write the round-close line, in step 4's form, before the next round's `validate` call.
+Each of these lines is reply text the user sees, written before your next tool call. *Do not write them only in your thinking, and do not go on to the next location or the next round's `validate` call before they are shown.*
 
 ## Finish
 

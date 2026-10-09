@@ -245,6 +245,12 @@ class RemedyAgentTest(unittest.TestCase):
         slots = section(PROC_MD.read_text(encoding="utf-8"), "Decide the slots")
         self.assertIn("the `change` line wins", slots)
 
+    def test_inline_lines_are_reply_text_not_only_thinking(self):
+        inline = section(HEAL_MD.read_text(encoding="utf-8"), "Inline path")
+        self.assertIn("reply text the user sees", inline)
+        self.assertIn("before your next tool call", inline)
+        self.assertIn("Do not write them only in your thinking", inline)
+
 
 if __name__ == "__main__":
     unittest.main()
