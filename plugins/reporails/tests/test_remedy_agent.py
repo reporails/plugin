@@ -153,10 +153,56 @@ class RemedyAgentTest(unittest.TestCase):
         finish = section(heal, "Finish")
         loop = section(heal, "The loop")
         outcome = section(PROC_MD.read_text(encoding="utf-8"), "Outcome report")
-        for gone in ("gate_mover` and `conditional` fixes", "made_direct", "made_specific", "`kept`", "rounds used"):
+        for gone in ("gate_mover` and `conditional` fixes", "`kept`", "rounds used"):
             self.assertNotIn(gone, finish + loop)
         self.assertIn("introduced <n>", outcome)
         self.assertIn("introduced", finish)
+
+    def test_finish_receipt_carries_made_direct_and_made_specific_lanes(self):
+        heal = HEAL_MD.read_text(encoding="utf-8")
+        finish = section(heal, "Finish")
+        outcome = section(PROC_MD.read_text(encoding="utf-8"), "Outcome report")
+        receipt = finish[finish.index("Report, in this order:"):finish.index("Write the same receipt")]
+        items = [line for line in receipt.splitlines()[1:] if line.strip()]
+        for number, line in enumerate(items, 1):
+            self.assertTrue(line.startswith(f"{number}. "), f"unnumbered or out-of-order line in the receipt list: {line!r}")
+        titles = [re.match(r"\d+\. (.*)", line).group(1) for line in items]
+        lead = [i for i, t in enumerate(titles) if t.startswith("The compression line")]
+        direct = [i for i, t in enumerate(titles) if t.startswith('"Made direct"')]
+        specific = [i for i, t in enumerate(titles) if t.startswith('"Made specific"')]
+        left = [i for i, t in enumerate(titles) if t.startswith('"Left for you"')]
+        score = [i for i, t in enumerate(titles) if t.startswith("Last, and secondary")]
+        self.assertEqual((lead, direct, specific), ([0], [3], [4]))
+        self.assertLess(specific[0], left[0])
+        self.assertLess(left[0], score[0])
+        shapes = {"made direct": "<text> → <new_text>", "made specific": "<before> → <after>"}
+        for lane, line in (("made direct", items[direct[0]]), ("made specific", items[specific[0]])):
+            self.assertIn(f"`{lane}: {shapes[lane]}`", line)
+            self.assertIn("from the `accepted` rows", line)
+            self.assertIn("as reported", line)
+        self.assertNotIn("preservation.", receipt)
+        self.assertNotIn("repair", receipt.lower())
+        self.assertIn("same receipt", finish)
+        for lane, shape in shapes.items():
+            self.assertIn(f"`{lane}: {shape}`", outcome)
+        for key in ("made_direct", "made_specific"):
+            self.assertIn(f"`preservation.{key}:`", outcome)
+        self.assertIn("each followed by a compact list", outcome)
+        # Recorded live validate reply lines; the procedure must name each key they carry.
+        recorded = {
+            "made_direct": 'preservation.made_direct: [{"line":13,"text":"You should probably prefer small functions over long ones.","new_line":13,"new_text":"Write small functions instead of long ones."}]',
+            "made_specific": 'preservation.made_specific: [{"line":22,"before":"Run the linter before committing.","after":"Run `uv run ruff check src/` before committing."}]',
+        }
+        for key, reply in recorded.items():
+            for field in re.findall(r'"(\w+)":', reply):
+                self.assertIn(f"`{field}`", outcome, f"{key}: {field}")
+        self.assertNotIn('{"line", "before", "after"}', outcome)
+        loop = section(heal, "The loop")
+        step3 = loop[loop.index("3. Collect"):loop.index("\n4. ")]
+        for lane in ("`made direct:`", "`made specific:`"):
+            self.assertIn(lane, step3)
+        self.assertIn("`preservation.ok: true`", outcome)
+        self.assertIn("`accepted`", outcome)
 
     def test_public_docs_state_only_what_the_user_gets(self):
         for path in (README_MD, SKILL_MD):

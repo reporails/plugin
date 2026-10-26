@@ -95,13 +95,13 @@ The index order IS the round order: a round is a consecutive run of locations sh
    - A refused write — the agent starts, but the client's own guard denies one of its file edits (for example, a self-modification guard refusing an edit to an agent definition file) — does not stop the run. The `remedy` agent reports that location `refused`; log it. Then move on to the rest of this round's `remedy` agents. *The rest of this round still dispatches, and later rounds still run.*
 3. Collect the outcome each `remedy` agent reports (the report's last line is its `outcome:` line), which is only a compact outcome — per file, its path and `accepted` (with its score before → after, its `introduced` count, up to 3 before → after pairs, and any `left:` lines), `restored` with the failed check(s), or `refused` with the reason the client's guard gave — never the brief or a file's contents.
    Take each `remedy` agent's reported outcome as given.
-   A location's status is the status on its `outcome:` line, everywhere it is used: the line you show the user, the restore and refusal logs, the given-up locations, and `## Finish`. Read the per-file rows only for per-file details (scores, `introduced`, before → after pairs, `left:` lines).
+   A location's status is the status on its `outcome:` line, everywhere it is used: the line you show the user, the restore and refusal logs, the given-up locations, and `## Finish`. Read the per-file rows only for per-file details (scores, `introduced`, before → after pairs, `left:` lines, `made direct:` and `made specific:` lines).
    On Claude Code, the plugin prints the line of each location a dispatched `remedy` sub-agent worked (a dispatch through the client's sub-agent tool) itself as each sub-agent returns, whether the client ran it in the foreground or the background. *Do not write that line again on Claude Code for such a location.*
    On every other client, after each `remedy` agent's hand-back, write one line in this form: `<order> <element> — accepted (score a → b) | restored (<failed check>) | refused (<reason>)`. Name the hook in the `refused` reason when a hook refused the write.
    Write that line in a reply as soon as the agent's outcome arrives, before your next tool call.
    Write one line per location, also when several agents of the round return close together.
    Show the user that one line for each hand-back. *Do not paste a `remedy` agent's report into the reply.*
-   Keep the rest of each report (its before → after pairs, `introduced`, `left:` lines, `validate calls`) for `## Finish`.
+   Keep the rest of each report (its before → after pairs, `introduced`, `left:` lines, `made direct:` lines, `made specific:` lines, `validate calls`) for `## Finish`.
    Log every restore with its reason (the location's `element`, its files, and the failed check(s) reported).
    Log every refusal with its reason (the location's `element`, its files, and what the guard said).
    Give up a restored or refused location for the rest of this run: skip it in step 1 even if it reappears in a later round's index, matched by its `element` and `kind`, and at least one file in common with the given-up location's `files`.
@@ -139,11 +139,13 @@ Report, in this order:
 1. The compression line, before → now, from the `compression:` line of the first and the last reply.
 2. "What your agent now reads differently": up to 5 before → after pairs, taken from the pairs the agents reported under their `accepted` rows.
 3. The total `introduced` count, summed from the `introduced <n>` of the accepted files' rows.
-4. "Left for you": one line per `left:` line the agents reported, as they gave it. A `hoist` slot appears here as `move <file>:<line> into <to>; the same line is in <also path>`.
-5. "Left alone on purpose": group `workflow.listed` by its `code`. Give each group one line per rule — its title with its ID as a link, `Title ([CORE:E:0004](url))`, and its count — then the group's `reason` sentence once, after its rules.
-6. The locations still open, each with the reason.
-7. Last, and secondary: the project score and the finding count, before → now.
-8. The fixes made before the rounds: `<n> fixed` and `<k> put back`, as the `heal_apply:` line reported them. Give no count that line did not.
+4. "Made direct": each `made direct: <text> → <new_text>` line from the `accepted` rows, as reported, so the user can undo it. Leave it out when no `accepted` row carries one.
+5. "Made specific": each `made specific: <before> → <after>` line from the `accepted` rows, as reported, so the user can undo it. Leave it out when no `accepted` row carries one.
+6. "Left for you": one line per `left:` line the agents reported, as they gave it. A `hoist` slot appears here as `move <file>:<line> into <to>; the same line is in <also path>`.
+7. "Left alone on purpose": group `workflow.listed` by its `code`. Give each group one line per rule — its title with its ID as a link, `Title ([CORE:E:0004](url))`, and its count — then the group's `reason` sentence once, after its rules.
+8. The locations still open, each with the reason.
+9. Last, and secondary: the project score and the finding count, before → now.
+10. The fixes made before the rounds: `<n> fixed` and `<k> put back`, as the `heal_apply:` line reported them. Give no count that line did not.
 
 Write the same receipt as Markdown to `.ails/reports/heal-<YYYY-MM-DD-HHMM>.md` under the project `path`, with `<YYYY-MM-DD-HHMM>` as the local date and 24-hour time.
 Add an appendix to that report file with one entry per location: its `element`, status (from its `outcome:` line), files' score before → after, `introduced` count, and `validate calls`, all as the agents reported them.

@@ -82,6 +82,7 @@ Report a compact outcome whose first line is `location <order> <element>`, with 
 
 - `introduced <n>` is the `introduced` count of the file's last `validate` reply (`0` for a `restored` or `refused` file).
 - Under an `accepted` row, list up to 3 before → after pairs of the changes you made, then one `left:` line per slot you left untouched.
+- Under an `accepted` row, also list one `made direct: <text> → <new_text>` line per `preservation.made_direct` entry and one `made specific: <before> → <after>` line per `preservation.made_specific` entry. Read both lists from the last `validate` reply with `preservation.ok: true`, which prints `preservation.made_direct:` and `preservation.made_specific:` each followed by a compact list. A `made_direct` entry has `line`, `text`, `new_line`, `new_text`; a `made_specific` entry has `line`, `before`, `after`. List only the entries a list holds.
 - A `left:` line for a `hoist` slot reads `left: move <file>:<line> into <to>; the same line is in <also path>`. Give the file name as the plan's `file`, the line as the slot's `line`, `to` as the plan's `to`, and `<also path>` as the first item of `also`.
 - A `left:` line for any other slot you could not make specific from what the file and project contain reads `left: <file>:<line> — <reason>`.
 - Under a `restored` row, list the failed check(s): `conformance.deviation`, the `preservation` fields that came back non-empty, or the score before/after when that was the only failure.
