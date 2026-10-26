@@ -5,7 +5,7 @@ license: BUSL-1.1
 compatibility: "Requires `uv`: the plugin starts the reporails-cli engine with it. The `setup` subcommand walks through installing both."
 metadata:
   author: reporails
-  version: "0.6.2"
+  version: "0.6.6"
   homepage: https://reporails.com
 ---
 
