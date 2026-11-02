@@ -1,7 +1,7 @@
 {
   "name": "reporails",
   "version": "0.6.6",
-  "description": "AI instruction-file quality. Preflight the rules before authoring a skill, agent, or rule; validate instruction files; rewrite instruction files toward their ideal form (requires a Pro subscription); explain what a rule checks.",
+  "description": "AI instruction-file quality. Preflight the rules before authoring a skill, agent, or rule; validate instruction files; rewrite instruction files toward their ideal form (requires a Pro subscription); explain what a rule checks; open the session x-ray page.",
   "author": {
     "name": "Mészáros Gábor e.v.",
     "email": "gabor@cleverhoods.com",
@@ -14,7 +14,7 @@
   "interface": {
     "displayName": "reporails",
     "shortDescription": "AI instruction-file quality — preflight, check, heal, explain",
-    "longDescription": "Preflight the rules before you author a skill, agent, or rule; validate existing instruction files; rewrite instruction files toward their ideal form (requires a Pro subscription); explain what a rule checks. Backed by the reporails MCP server and the ails skill.",
+    "longDescription": "Preflight the rules before you author a skill, agent, or rule; validate existing instruction files; rewrite instruction files toward their ideal form (requires a Pro subscription); explain what a rule checks; open the session x-ray page. Backed by the reporails MCP server and the ails skill.",
     "developerName": "Mészáros Gábor e.v.",
     "category": "Developer Tools",
     "capabilities": ["Interactive", "Write"],
