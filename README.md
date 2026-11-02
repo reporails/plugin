@@ -7,10 +7,10 @@ A portable [Agent Plugins](https://agent-plugins.org) package delivering AI inst
 | File | What | Read by |
 |---|---|---|
 | `plugins/reporails/skills/ails/` | The `ails` skill — preflight + check + heal + explain, including fixing your instruction files and re-checking them | all 5 |
-| `plugins/reporails/plugin.json` | Portable Agent Plugins manifest | codex, cursor, copilot (+ supplies antigravity's `name`) |
-| `plugins/reporails/mcp.json` | Portable MCP config (`type: stdio`) | codex, cursor, copilot |
+| `plugins/reporails/plugin.json` | Portable Agent Plugins manifest | codex (+ supplies antigravity's `name`) |
+| `plugins/reporails/mcp.json` | Portable MCP config (`type: stdio`) | codex |
 | `plugins/reporails/mcp_config.json` | Antigravity MCP config | antigravity |
-| `plugins/reporails/.mcp.json` + `plugins/reporails/.claude-plugin/` | Claude-native MCP config + manifest | claude |
+| `plugins/reporails/.mcp.json` + `plugins/reporails/.claude-plugin/` | Claude-native MCP config + manifest | claude, cursor, copilot |
 | `.claude-plugin/marketplace.json` + `.agents/plugins/marketplace.json` | Marketplace catalogs pointing at `plugins/reporails/` | claude, codex |
 
 Every MCP config points at the same `reporails-mcp` server via `uvx`, so all five agents reach one engine, and there is one skill to maintain.

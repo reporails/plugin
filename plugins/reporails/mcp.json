@@ -4,10 +4,7 @@
     "reporails": {
       "type": "stdio",
       "command": "uvx",
-      "args": ["--from", "reporails-cli>=0.6.2,<0.7", "reporails-mcp"],
-      "env": {
-        "AILS_PROJECT_DIR": "${workspaceFolder}"
-      }
+      "args": ["--from", "reporails-cli>=0.6.2,<0.7", "reporails-mcp"]
     }
   }
 }
