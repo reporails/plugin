@@ -1,6 +1,6 @@
 {
   "name": "reporails",
-  "version": "0.6.6",
+  "version": "0.6.7",
   "description": "AI instruction-file quality. Preflight the rules before authoring a skill, agent, or rule; validate instruction files; rewrite instruction files toward their ideal form (requires a Pro subscription); explain what a rule checks; open the session x-ray page.",
   "author": {
     "name": "Mészáros Gábor e.v.",
