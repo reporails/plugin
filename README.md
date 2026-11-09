@@ -6,7 +6,7 @@ A portable [Agent Plugins](https://agent-plugins.org) package delivering AI inst
 
 | File | What | Read by |
 |---|---|---|
-| `plugins/reporails/skills/ails/` | The `ails` skill — preflight + check + heal + explain, including fixing your instruction files and re-checking them | all 5 |
+| `plugins/reporails/skills/ails/` | The `ails` skill — preflight + check + heal + explain + xray, including fixing your instruction files and re-checking them | all 5 |
 | `plugins/reporails/plugin.json` | Portable Agent Plugins manifest | codex (+ supplies antigravity's `name`) |
 | `plugins/reporails/mcp.json` | Portable MCP config (`type: stdio`) | codex |
 | `plugins/reporails/mcp_config.json` | Antigravity MCP config | antigravity |
@@ -68,8 +68,15 @@ uv tool install reporails-cli
 - `check` — validate instruction files, score, per-finding rule references
 - `heal` — fix your instruction files and report what changed and what was left for you (paid account)
 - `explain <rule_id>` — single-rule detail with Pass / Fail examples
+- `xray`: open the session x-ray page
 
 The slash-command namespace varies by agent (e.g. `/reporails:ails check` in Claude Code); the skill body drives the same loop everywhere.
+
+## X-ray
+
+`xray` opens a local page on `127.0.0.1` that shows what filled a Claude Code session's context window, over time. It is built from the transcripts Claude Code keeps under `~/.claude/projects/`, so it covers Claude Code sessions.
+
+[![Reporails x-ray demo](https://img.youtube.com/vi/2PmPI4rZCgM/maxresdefault.jpg)](https://www.youtube.com/watch?v=2PmPI4rZCgM)
 
 ## License
 
