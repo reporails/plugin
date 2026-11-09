@@ -2,6 +2,14 @@
 
 A portable [Agent Plugins](https://agent-plugins.org) package delivering AI instruction-file quality — preflight, check, heal, explain — into Claude Code, Codex, Cursor, GitHub Copilot, and Antigravity from one repo. It bundles the `ails` skill and the `reporails` MCP server; the `reporails-cli` package backs both.
 
+## X-ray
+
+`xray` opens a local page on `127.0.0.1` that shows what filled a Claude Code session's context window, over time. It is built from the transcripts Claude Code keeps under `~/.claude/projects/`, so it covers Claude Code sessions.
+
+[![Reporails x-ray demo](https://raw.githubusercontent.com/reporails/cli/main/docs/media/xray-demo.gif)](https://www.youtube.com/watch?v=2PmPI4rZCgM)
+
+The full 28-second demo is [on YouTube](https://www.youtube.com/watch?v=2PmPI4rZCgM).
+
 ## What's inside
 
 | File | What | Read by |
@@ -71,14 +79,6 @@ uv tool install reporails-cli
 - `xray`: open the session x-ray page
 
 The slash-command namespace varies by agent (e.g. `/reporails:ails check` in Claude Code); the skill body drives the same loop everywhere.
-
-## X-ray
-
-`xray` opens a local page on `127.0.0.1` that shows what filled a Claude Code session's context window, over time. It is built from the transcripts Claude Code keeps under `~/.claude/projects/`, so it covers Claude Code sessions.
-
-[![Reporails x-ray demo](https://raw.githubusercontent.com/reporails/cli/main/docs/media/xray-demo.gif)](https://www.youtube.com/watch?v=2PmPI4rZCgM)
-
-The full 28-second demo is [on YouTube](https://www.youtube.com/watch?v=2PmPI4rZCgM).
 
 ## License
 
