@@ -155,11 +155,16 @@ else
 fi
 [ -n "$out" ] || exit 0
 message=$out
+# The user sees systemMessage, the model does not: the same lines go into its context too, so the loop
+# knows they were shown and does not write them again.
+if [ "$event" = Prompt ]; then hook_event=UserPromptSubmit; else hook_event=PostToolUse; fi
 
 # Bytes that are not valid UTF-8 are dropped so the JSON is always valid.
 sanitize() { if command -v iconv >/dev/null; then iconv -c -f UTF-8 -t UTF-8; else cat; fi; }
-printf '%s' "$message" | tr -d '\000-\010\013-\037' | sanitize | awk '
-  BEGIN { printf "{\"systemMessage\": \"" }
-  { gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); printf "%s%s", (NR > 1 ? "\\n" : ""), $0 }
-  END { printf "\"}\n" }'
+printf '%s' "$message" | tr -d '\000-\010\013-\037' | sanitize | awk -v ev="$hook_event" '
+  { gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); text = text (NR > 1 ? "\\n" : "") $0 }
+  END {
+    printf "{\"systemMessage\": \"%s\", \"hookSpecificOutput\": {\"hookEventName\": \"%s\", ", text, ev
+    printf "\"additionalContext\": \"Heal progress already shown to the user; do not write these lines again:\\n%s\"}}\n", text
+  }'
 exit 0

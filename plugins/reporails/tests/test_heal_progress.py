@@ -149,6 +149,20 @@ class HealProgressTest(unittest.TestCase):
         self.assertEqual(len(second), 2)
         self.assertRegex(second[1], r"^Round skills done — 1 accepted, 1 restored, 0 refused, \d+\.\d min$")
 
+    def test_the_model_is_told_which_lines_the_user_was_shown(self):
+        """The user sees `systemMessage`, the model does not: without a note in its own context the
+        loop writes every line a second time."""
+        self.background_round()
+        out = json.loads(self.run_hook(user_prompt(notification("b1", self.REPORT_1))))
+        shown = out["hookSpecificOutput"]
+        self.assertEqual(shown["hookEventName"], "UserPromptSubmit")
+        self.assertTrue(shown["additionalContext"].startswith("Heal progress already shown to the user"))
+        self.assertIn(out["systemMessage"], shown["additionalContext"])
+        self.assertEqual(self.run_hook(pre("f1", 3)), "")
+        out = json.loads(self.run_hook(post("f1", 3, rep(3, "skill-c", "accepted", "score 7.5 → 9.0"))))
+        self.assertEqual(out["hookSpecificOutput"]["hookEventName"], "PostToolUse")
+        self.assertIn(out["systemMessage"], out["hookSpecificOutput"]["additionalContext"])
+
     def test_one_prompt_carrying_two_notifications_prints_both_lines_and_one_close(self):
         self.background_round()
         text = notification("b1", self.REPORT_1) + "\n" + notification("b2", self.REPORT_2)

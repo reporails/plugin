@@ -251,12 +251,13 @@ class RemedyAgentTest(unittest.TestCase):
         self.assertNotIn("repeat exactly that object", slots)
         self.assertNotIn("split-repeat", slots)
 
-    def test_the_loop_writes_progress_lines_unless_the_plugin_already_showed_them(self):
+    def test_the_loop_writes_progress_lines_unless_the_plugins_note_carries_them(self):
         loop = section(HEAL_MD.read_text(encoding="utf-8"), "The loop")
-        self.assertIn("Claude Code included when no such system message shows it", loop)
+        self.assertIn("Claude Code included when no such note carries the line", loop)
+        self.assertIn("Heal progress already shown to the user", loop)
         step4 = next(l for l in loop.splitlines() if l.startswith("4."))
         self.assertIn("Round <kind> done", step4)
-        self.assertIn("already shows it", step4)
+        self.assertIn("such a note carries it", step4)
 
     def test_start_block_ordering_rule_asks_nothing_of_the_host_project(self):
         start = section(HEAL_MD.read_text(encoding="utf-8"), "Start block")
