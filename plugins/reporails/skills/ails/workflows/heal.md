@@ -98,6 +98,7 @@ The index order IS the round order: a round is a consecutive run of locations sh
    Call `validate(path, targets)` again before starting the next round.
    The locations re-number against the now-changed files.
    Use the new `order`s for that round's dispatches.
+   When every location of the round was `refused`, no file changed: skip this `validate` call and work the next round from the last run-level `validate` reply's index and its `order`s. *Do not re-validate a project no file of which changed: the server counts it as a loop that makes no progress and stops the run.*
 
 Go to `## Finish` after the last round.
 
@@ -119,7 +120,7 @@ Each of these lines is reply text the user sees, written before your next tool c
 
 ## Finish
 
-Call `validate(path, targets)` once more after the last pass.
+Call `validate(path, targets)` once more after the last pass. When every location since the last run-level `validate` reply was `refused`, skip this call and take that reply as the closing reply.
 Report, in this order:
 
 1. The compression line, before → now, from the `compression:` line of the first and the last reply.
