@@ -5,7 +5,7 @@ Work a location with a `remedy` agent where the client supports sub-agents, or y
 Confirm each location's result conformed to its plan and kept everything before accepting it.
 This loop is MCP-only and needs a paid account.
 `$ARGUMENTS` is `[path] [targets…]`, as "`check` / `heal` arguments" in `SKILL.md` defines.
-Carry whatever `targets` you parsed on every run-level `validate` call this workflow makes (the initial call, the call before each round, and the final call), on the `heal_apply` call, and on every `remedy_brief` call. The per-file `validate(path=<file>)` check inside a location's procedure is the one call that carries no `targets`.
+Carry whatever `targets` you parsed on every run-level `validate` call this workflow makes (the initial call, the call before each round, and the final call), and on every `remedy_brief` call. The per-file `validate(path=<file>)` check inside a location's procedure is the one call that carries no `targets`.
 *Never call `validate` with `targets` the user did not give.*
 A Pro `validate` reply arrives as a text view.
 Read each of its fields by the key path its line starts with (`workflow.summary`, `workflow.locations`, `workflow.listed`, `host_hooks`, `conformance.ok`, `preservation.ok`, `feedback`, `funnel.retryable`).
@@ -41,8 +41,8 @@ A `workflow.locations` table over its size budget lists later kinds as one line 
 ## Start block
 
 Give the user this information once, as reply text the user sees, on every path and every client.
-Write it in a reply after the initial `validate` reply and before the `heal_apply` call, whether you work the locations with `remedy` agents or inline.
-Call `heal_apply` and start round 1 only after the start block is shown. *Do not call `heal_apply` or start round 1 before the start block is shown, and do not write the start block only in your thinking.*
+Write it in a reply after the initial `validate` reply and before round 1, whether you work the locations with `remedy` agents or inline.
+Start round 1 only after the start block is shown. *Do not start round 1 before the start block is shown, and do not write the start block only in your thinking.*
 Show the start block before any other reply text or tool call that follows the initial `validate` reply.
 It is information, not a question, so a user who approved every fix still gets it.
 
@@ -55,23 +55,9 @@ It is information, not a question, so a user who approved every fix still gets i
 5. That the client may ask before each edit to an instruction file (a `CLAUDE.md` or `AGENTS.md`, or anything under an agent's config folder such as `.claude/`), because those files change how their agent behaves. On Claude Code, the plugin shows the user a notice naming the folders the run writes to and the session-wide option for `.claude/` edits. *Do not repeat that notice on Claude Code.* On any other client, name every folder holding a location's `files`.
 6. That on the inline path (no sub-agent) the same hooks apply, and only the tool-and-path exemption works.
 
-## Apply the no-judgment fixes
-
-Call `heal_apply` only after the start block is shown.
-Before round 1, make every fix that needs no decision in one call.
-Find the `reporails` MCP `heal_apply` tool by the name ending `__heal_apply`, as `## Tool detection` in [`setup.md`](setup.md) directs for `validate`.
-Call `heal_apply(path, targets)` once, with the run's `targets`. *Do not call it again in this run.*
-Show the reply's first line to the user verbatim, in the form `heal_apply: <n> fixed · <m> left for a decision · <k> put back`.
-Keep its `<n>` and `<k>` for `## Finish`.
-
-- A reply that wrote nothing because the account is not Pro (free, signed out or offline) → stop exactly as the non-Pro `validate` branch in `## Initial `validate` call` does, with the reason the reply gives.
-- Otherwise call `validate(path, targets)` again and branch on the new reply as the initial `validate` call's branches do, so the rounds work from what is left. The exception is a paid reply whose `workflow.locations` is empty: the fixes finished the run, so go to `## Finish` instead of stopping.
-  A location absent from the new `workflow.locations`, or whose row shows `finding_count` 0, has nothing left to decide and is not dispatched.
-  The rounds below use only this reply's index and its `order`s.
-
 ## The loop
 
-Run one round per `kind`, in the order the index already gives them.
+Run one round per `kind`, in the order the index already gives them. Round 1 works from the initial `validate` reply's index.
 Kinds loaded at session start come first, then invoked kinds, then on-demand kinds.
 The index order IS the round order: a round is a consecutive run of locations sharing one `kind`.
 *When a `remedy` agent works a location, this loop does not call `remedy_brief` or read that location's file contents itself.* That is the agent's job, in its own context. When you work a location inline, you do both, as `## Inline path` directs.
@@ -133,7 +119,7 @@ Each of these lines is reply text the user sees, written before your next tool c
 
 ## Finish
 
-Call `validate(path, targets)` once more after the last pass. When you came here from an empty `workflow.locations` in the reply after `heal_apply`, that reply is the closing reply: do not call `validate` again.
+Call `validate(path, targets)` once more after the last pass.
 Report, in this order:
 
 1. The compression line, before → now, from the `compression:` line of the first and the last reply.
@@ -145,7 +131,7 @@ Report, in this order:
 7. "Left alone on purpose": group `workflow.listed` by its `code`. Give each group one line per rule — its title with its ID as a link, `Title ([CORE:E:0004](url))`, and its count — then the group's `reason` sentence once, after its rules.
 8. The locations still open, each with the reason.
 9. Last, and secondary: the project score and the finding count, before → now.
-10. The fixes made before the rounds: `<n> fixed` and `<k> put back`, as the `heal_apply:` line reported them. Give no count that line did not.
+10. The scripted fixes the agents applied: the sum of `edits <n> applied` over the agents' `accepted` rows. Give no count the rows did not report.
 
 Write the same receipt as Markdown to `.ails/reports/heal-<YYYY-MM-DD-HHMM>.md` under the project `path`, with `<YYYY-MM-DD-HHMM>` as the local date and 24-hour time.
 Add an appendix to that report file with one entry per location: its `element`, status (from its `outcome:` line), files' score before → after, `introduced` count, and `validate calls`, all as the agents reported them.

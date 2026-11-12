@@ -53,10 +53,9 @@ class RemedyAgentTest(unittest.TestCase):
         self.assertIn("mcp__plugin_reporails_reporails__explain", frontmatter_disallowed_tools(text))
         self.assertIn("Do not call `explain`", PROC_MD.read_text(encoding="utf-8"))
 
-    def test_heal_apply_is_denied_to_the_remedy_agent(self):
-        disallowed = frontmatter_disallowed_tools(REMEDY_MD.read_text(encoding="utf-8"))
-        self.assertIn("mcp__plugin_reporails_reporails__heal_apply", disallowed)
-        self.assertIn("Do not call `heal_apply`", PROC_MD.read_text(encoding="utf-8"))
+    def test_no_surface_names_heal_apply(self):
+        for path in (HEAL_MD, PROC_MD, REMEDY_MD, SKILL_MD):
+            self.assertNotIn("heal_apply", path.read_text(encoding="utf-8"), path.name)
 
     def test_every_remedy_brief_call_carries_has_guide(self):
         for path in (REMEDY_MD, HEAL_MD, PROC_MD):
@@ -216,33 +215,10 @@ class RemedyAgentTest(unittest.TestCase):
         self.assertNotIn("## Inline rewrite", text)
         self.assertIn("on any client", text)
 
-    def test_heal_applies_no_judgment_fixes_once_before_round_one(self):
-        heal = HEAL_MD.read_text(encoding="utf-8")
-        self.assertEqual(heal.count("heal_apply(path, targets)"), 1)
-        apply = section(heal, "Apply the no-judgment fixes")
-        self.assertIn("heal_apply(path, targets)", apply)
-        self.assertLess(heal.index("## Apply the no-judgment fixes"), heal.index("\n## The loop\n"))
-        self.assertLess(heal.index("## Start block"), heal.index("## Apply the no-judgment fixes"))
-        self.assertIn("first line", apply)
-        self.assertIn("verbatim", apply)
-
-    def test_heal_revalidates_after_apply_and_skips_settled_locations(self):
-        apply = section(HEAL_MD.read_text(encoding="utf-8"), "Apply the no-judgment fixes")
-        self.assertLess(apply.index("heal_apply(path, targets)"), apply.index("validate(path, targets)"))
-        self.assertIn("not dispatched", apply)
-        self.assertIn("finding_count", apply)
-        self.assertIn("not Pro", apply)
-
-    def test_finish_names_the_apply_counts(self):
+    def test_finish_names_the_scripted_fix_count(self):
         finish = section(HEAL_MD.read_text(encoding="utf-8"), "Finish")
-        self.assertIn("heal_apply", finish)
-        self.assertIn("fixed", finish)
-        self.assertIn("put back", finish)
-
-    def test_apply_section_does_not_restate_the_location_procedure(self):
-        apply = section(HEAL_MD.read_text(encoding="utf-8"), "Apply the no-judgment fixes")
-        for restated in ("old_string", "conformance.ok", "Apply every `edits`", "hoist", "remedy_brief"):
-            self.assertNotIn(restated, apply)
+        self.assertIn("edits <n> applied", finish)
+        self.assertIn("`accepted` rows", finish)
 
     def test_inline_path_writes_location_and_round_close_lines_on_every_client(self):
         heal = HEAL_MD.read_text(encoding="utf-8")
@@ -258,13 +234,12 @@ class RemedyAgentTest(unittest.TestCase):
                 self.assertIn("dispatched `remedy` sub-agent", line)
         self.assertNotIn("Do not write them again on Claude Code.", loop)
 
-    def test_start_block_is_shown_before_heal_apply_is_called(self):
+    def test_start_block_is_shown_before_round_one(self):
         heal = HEAL_MD.read_text(encoding="utf-8")
         start = section(heal, "Start block")
-        self.assertIn("before the `heal_apply` call", start)
+        self.assertIn("before round 1", start)
         self.assertIn("do not write the start block only in your thinking", start)
-        apply = section(heal, "Apply the no-judgment fixes")
-        self.assertIn("only after the start block is shown", apply)
+        self.assertIn("Start round 1 only after the start block is shown", start)
         self.assertEqual(heal.count("Round <kind> done"), 1)
 
     def test_slot_change_follows_its_ops_line_in_place_of_op(self):
@@ -322,12 +297,6 @@ class RemedyAgentTest(unittest.TestCase):
         host = section(PROC_MD.read_text(encoding="utf-8"), "Host instructions")
         self.assertIn("whatever the project asks of replies", host)
 
-    def test_a_heal_that_heal_apply_finishes_goes_to_finish(self):
-        apply = section(HEAL_MD.read_text(encoding="utf-8"), "Apply the no-judgment fixes")
-        self.assertIn("go to `## Finish`", apply)
-        self.assertIn("do not call `validate` again", section(HEAL_MD.read_text(encoding="utf-8"), "Finish"))
-        self.assertIn("empty", apply)
-
     def test_start_block_reads_the_skipped_groups_by_code(self):
         start = section(HEAL_MD.read_text(encoding="utf-8"), "Start block")
         for token in ("`code`", "`excluded`", "`at-ceiling`", "`leave-it`"):
@@ -357,9 +326,9 @@ class RemedyAgentTest(unittest.TestCase):
         self.assertIn("per-file details", loop)
         self.assertIn("`outcome:` line", section(heal, "Finish"))
 
-    def test_the_targets_rule_lives_in_heal_md_and_names_heal_apply(self):
+    def test_the_targets_rule_lives_in_heal_md(self):
         carry = HEAL_MD.read_text(encoding="utf-8").splitlines()[7]
-        for token in ("`heal_apply`", "`remedy_brief`", "run-level `validate`"):
+        for token in ("`remedy_brief`", "run-level `validate`"):
             self.assertIn(token, carry)
 
 
