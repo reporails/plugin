@@ -82,8 +82,8 @@ The index order IS the round order: a round is a consecutive run of locations sh
 3. Collect the outcome each `remedy` agent reports (the report's last line is its `outcome:` line), which is only a compact outcome — per file, its path and `accepted` (with its score before → after, its `introduced` count, up to 3 before → after pairs, and any `left:` lines), `restored` with the failed check(s), or `refused` with the reason the client's guard gave — never the brief or a file's contents.
    Take each `remedy` agent's reported outcome as given.
    A location's status is the status on its `outcome:` line, everywhere it is used: the line you show the user, the restore and refusal logs, the given-up locations, and `## Finish`. Read the per-file rows only for per-file details (scores, `introduced`, before → after pairs, `left:` lines, `made direct:` and `made specific:` lines).
-   On Claude Code, the plugin prints the line of each location a dispatched `remedy` sub-agent worked (a dispatch through the client's sub-agent tool) itself as each sub-agent returns, whether the client ran it in the foreground or the background. *Do not write that line again on Claude Code for such a location.*
-   On every other client, after each `remedy` agent's hand-back, write one line in this form: `<order> <element> — accepted (score a → b) | restored (<failed check>) | refused (<reason>)`. Name the hook in the `refused` reason when a hook refused the write.
+   On Claude Code, the plugin can print the line of a location a dispatched `remedy` sub-agent worked as a system message when the sub-agent returns. *Do not write the line again when that system message already shows it.*
+   On every client, Claude Code included when no such system message shows it, after each `remedy` agent's hand-back, write one line in this form: `<order> <element> — accepted (score a → b) | restored (<failed check>) | refused (<reason>)`. Name the hook in the `refused` reason when a hook refused the write.
    Write that line in a reply as soon as the agent's outcome arrives, before your next tool call.
    Write one line per location, also when several agents of the round return close together.
    Show the user that one line for each hand-back. *Do not paste a `remedy` agent's report into the reply.*
@@ -92,7 +92,7 @@ The index order IS the round order: a round is a consecutive run of locations sh
    Log every refusal with its reason (the location's `element`, its files, and what the guard said).
    Give up a restored or refused location for the rest of this run: skip it in step 1 even if it reappears in a later round's index, matched by its `element` and `kind`, and at least one file in common with the given-up location's `files`.
    *Do not inspect the files or run a shell command to confirm a restore.*
-4. On Claude Code, the plugin has printed the round-close line after the last hand-back of a round whose every location a dispatched `remedy` sub-agent worked. In a round with an inline location, including a round where a dispatch fell back to the inline path, write the round-close line yourself, covering the whole round, on every client. On every other client, after the round's last hand-back, write one round-close line in the form `Round <kind> done — <n> accepted, <n> restored, <n> refused, <minutes> min`. Show the user that line.
+4. After the round's last hand-back, write one round-close line in the form `Round <kind> done — <n> accepted, <n> restored, <n> refused, <minutes> min`, covering the whole round, and show the user that line. On Claude Code the plugin can print that line as a system message. *Do not write it again when that system message already shows it.*
    On every other client, write the round-close line before the `validate` call that starts the next round.
    On every other client, show all of the round's lines (one per location, then the round-close line) before that call. *Do not move to the next round's `validate` before the round's lines are shown.*
    Call `validate(path, targets)` again before starting the next round.
@@ -121,6 +121,7 @@ Each of these lines is reply text the user sees, written before your next tool c
 ## Finish
 
 Call `validate(path, targets)` once more after the last pass. When every location since the last run-level `validate` reply was `refused`, skip this call and take that reply as the closing reply.
+Open the reply with item 1 as its first line. *Do not open the reply with the score, a summary sentence or a count of locations: the score comes last.*
 Report, in this order:
 
 1. The compression line, before → now, from the `compression:` line of the first and the last reply.
