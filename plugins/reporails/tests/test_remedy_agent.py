@@ -135,11 +135,19 @@ class RemedyAgentTest(unittest.TestCase):
             self.assertNotIn(restated, inline)
         self.assertIn("remedy-location.md", inline)
 
-    def test_acceptance_requires_no_score_fall(self):
+    def test_acceptance_reads_the_replys_accepted_field(self):
         validate = section(PROC_MD.read_text(encoding="utf-8"), "Validate")
         accept = next(l for l in validate.splitlines() if l.startswith("1."))
-        self.assertIn("`score_after`", accept)
-        self.assertIn("`score_before`", accept)
+        restore = next(l for l in validate.splitlines() if l.startswith("4."))
+        self.assertIn("`accepted` is `true`", accept)
+        self.assertIn("`accepted` is still not `true`", restore)
+        self.assertNotIn("`score_after`", accept + restore)
+
+    def test_heal_rechecks_each_accepted_file_itself(self):
+        heal = HEAL_MD.read_text(encoding="utf-8")
+        self.assertNotIn("Take each `remedy` agent's reported outcome as given.", heal)
+        self.assertIn("call `validate(path=<file>)` yourself", heal)
+        self.assertIn("`keep check failed: <path>`", heal)
 
     def test_per_file_check_carries_no_targets(self):
         proc = PROC_MD.read_text(encoding="utf-8")
