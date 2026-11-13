@@ -147,6 +147,8 @@ class RemedyAgentTest(unittest.TestCase):
         heal = HEAL_MD.read_text(encoding="utf-8")
         self.assertNotIn("Take each `remedy` agent's reported outcome as given.", heal)
         self.assertIn("call `validate(path=<file>)` yourself", heal)
+        self.assertIn("a `circuit_breaker` reply included", heal)
+        self.assertIn("no `accepted` field, or it is not `true`", heal)
         self.assertIn("`keep check failed: <path>`", heal)
 
     def test_per_file_check_carries_no_targets(self):
