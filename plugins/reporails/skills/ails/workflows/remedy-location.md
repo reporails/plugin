@@ -18,7 +18,7 @@ Call `remedy_brief(path, location, targets, has_guide=true)` once to fetch your 
 - `guides` — per rule id, a `title` with a `pass` and a `fail` example.
 - `ops` — per `op` (and per `change` kind a slot carries), one plain instruction for how to change a slot.
 - `refused` — changes the plan declined to make, each with a `reason`. Leave those lines as they are.
-- `preservation_contract` — the fixed rule your result is measured against (below).
+- `preservation_contract` — the fixed rule your result is measured against. Read it in full before you change anything, and hold every change you make to it.
 
 Read and write each file at its absolute `path`. The relative `file` name may not resolve against your own working directory. *Do not read or write a file at its relative `file` name.*
 
@@ -37,11 +37,9 @@ When a slot carries `change`, follow `ops[<change, without any ":<object>" part>
 
 While you decide a slot:
 
-1. Keep the `polarity` and the scope of the instruction. A prohibition stays a prohibition. A directive stays a directive. *Do not add or drop a condition, exception, or qualifier that changes what an instruction covers.*
-2. Keep every construct the instruction names: each tool, file, and command.
-3. Grow an instruction only by a construct the file already names or that exists in the project, or by a reason the file already gives. Check a `path` with your file tools before naming it. Leave the line as it is when you cannot make it specific from what the file and the project contain. *Do not supply a tool name, argument, fact, or reason the file does not state.* *Do not add filler.*
-4. Keep every table row, list item, heading, fenced block, example, and link, each list item in its own list.
-5. Touch only the files the plan names. *Do not create, rename, or delete any other file.* *Do not edit a file belonging to another location.*
+1. Hold the change to the plan's `preservation_contract`, clause by clause.
+2. Check a `path` with your file tools before naming it. Leave the line as it is when you cannot make it specific from what the file and the project contain. *Do not supply a tool name, argument, fact, or reason the file does not state.*
+3. Touch only the files the plan names. *Do not create, rename, or delete any other file.* *Do not edit a file belonging to another location.*
 
 ### Hoist slots
 
@@ -70,7 +68,7 @@ When a host hook blocks a read or a write, report the location `refused` and quo
 
 ## The preservation contract
 
-"Keep every instruction: each keeps its polarity — a prohibition stays a prohibition — its scope, with no condition or exception added or dropped, and every construct it names. Keep every table row, list item, heading, fenced block, example and link, each list item in its own list. Keep a bare negative heading such as `## Don'ts` exactly as it is, with its items under it. Keep each constraint directly after the directive it limits. Add no filler and invent nothing."
+The plan's `preservation_contract` field is the contract. *Do not work a file from memory of an earlier plan's contract: read the one this plan carries.*
 
 Your result is re-validated against this contract after you finish. A file that lost anything, deviated from the plan, or lowered the score is restored. Write as if that `validate` check is watching, because it is.
 
